@@ -2,42 +2,57 @@
 // ============================================================================
 // NCA — MX Block-Quantized Linear Algebra
 // core/linalg/mx_linear.hpp
-//
-// Extremely fast C-style raw memory structures for OCP MX quantization.
-// Bypasses C++ std::vector overhead.
 // ============================================================================
 
 #include <cstdint>
 #include <cstddef>
+#include <bit>
 
 namespace nca::linalg {
 
-// C-style pure data struct for weights (Signed INT8)
+inline float decode_e8m0_scale(uint8_t e) {
+    if (e == 0) return 0.0f;
+    uint32_t bits = static_cast<uint32_t>(e) << 23;
+    return std::bit_cast<float>(bits);
+}
+
+// RAII wrapper for 64-byte aligned tensors to prevent manual lifecycle ceremony
 struct MXINT8Tensor {
-    int8_t* __restrict data;
-    uint8_t* __restrict scales;
-    size_t num_blocks; // Number of 32-element blocks
+    int8_t* __restrict data = nullptr;
+    uint8_t* __restrict scales = nullptr;
+    int32_t* __restrict w_sums = nullptr; // Precomputed sums for activation zero-point shift
+    size_t num_blocks = 0;
+
+    MXINT8Tensor() = default;
+    explicit MXINT8Tensor(size_t blocks);
+    ~MXINT8Tensor();
+
+    MXINT8Tensor(const MXINT8Tensor&) = delete;
+    MXINT8Tensor& operator=(const MXINT8Tensor&) = delete;
+
+    MXINT8Tensor(MXINT8Tensor&& o) noexcept;
+    MXINT8Tensor& operator=(MXINT8Tensor&& o) noexcept;
 };
 
-// C-style pure data struct for activations (Unsigned UINT8 for VNNI compliance)
 struct MXUINT8Tensor {
-    uint8_t* __restrict data;
-    uint8_t* __restrict scales;
-    size_t num_blocks;
+    uint8_t* __restrict data = nullptr;
+    uint8_t* __restrict scales = nullptr;
+    size_t num_blocks = 0;
+
+    MXUINT8Tensor() = default;
+    explicit MXUINT8Tensor(size_t blocks);
+    ~MXUINT8Tensor();
+
+    MXUINT8Tensor(const MXUINT8Tensor&) = delete;
+    MXUINT8Tensor& operator=(const MXUINT8Tensor&) = delete;
+
+    MXUINT8Tensor(MXUINT8Tensor&& o) noexcept;
+    MXUINT8Tensor& operator=(MXUINT8Tensor&& o) noexcept;
 };
 
-// C-style allocators guaranteeing 64-byte alignment
-void mx_alloc_int8(MXINT8Tensor* t, size_t num_blocks);
-void mx_free_int8(MXINT8Tensor* t);
+void mx_quantize_w(const float* __restrict in, MXINT8Tensor& out);
+void mx_quantize_x(const float* __restrict in, MXUINT8Tensor& out);
 
-void mx_alloc_uint8(MXUINT8Tensor* t, size_t num_blocks);
-void mx_free_uint8(MXUINT8Tensor* t);
-
-// Quantization (from float32)
-void mx_quantize_w(const float* __restrict in, MXINT8Tensor* __restrict out);
-void mx_quantize_x(const float* __restrict in, MXUINT8Tensor* __restrict out);
-
-// Dynamically Dispatched Dot Product
-float mx_dot(const MXINT8Tensor* __restrict w, const MXUINT8Tensor* __restrict x);
+float mx_dot(const MXINT8Tensor& w, const MXUINT8Tensor& x);
 
 } // namespace nca::linalg

@@ -8,6 +8,7 @@
 
 #include "core/normalization.hpp"
 #include "core/activations.hpp"
+#include "core/linalg/mx_linear.hpp"
 #include <iostream>
 #include <vector>
 #include <chrono>
@@ -87,6 +88,18 @@ int main() {
     profile_function("nca::math::silu (Non-Temporal)", D, [&]() {
         nca::math::silu(out_s);
     });
+
+    // ── VNNI Profiling ──
+    nca::linalg::MXINT8Tensor w_q(D / 32);
+    nca::linalg::MXUINT8Tensor x_q(D / 32);
+    
+    nca::linalg::mx_quantize_w(w_ptr, w_q);
+    nca::linalg::mx_quantize_x(in_ptr, x_q);
+
+    profile_function("nca::linalg::mx_dot (AVX-512 VNNI)", D, [&]() {
+        nca::linalg::mx_dot(w_q, x_q);
+    });
+    // ──────────────────────
 
     _aligned_free(in_ptr);
     _aligned_free(w_ptr);

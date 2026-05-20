@@ -6,3 +6,4 @@ C:/Users/sao/Documents/cpu_model/nn/build/tests/CMakeFiles/test_phase1_rmsnorm.d
 C:/Users/sao/Documents/cpu_model/nn/build/tests/CMakeFiles/test_phase2_activations.dir
 C:/Users/sao/Documents/cpu_model/nn/build/tests/CMakeFiles/test_phase3_vnni.dir
 C:/Users/sao/Documents/cpu_model/nn/build/tests/CMakeFiles/test_profiling.dir
+C:/Users/sao/Documents/cpu_model/nn/build/tests/CMakeFiles/test_phase4_glr.dir

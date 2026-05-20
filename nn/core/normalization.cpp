@@ -31,16 +31,7 @@ void rmsnorm(std::span<float> out, std::span<const float> in, std::span<const fl
         throw std::invalid_argument("rmsnorm: Tensor spans must have equal size");
     }
 
-    using simd::Backend;
-    Backend b = simd::best_backend();
-    
-    if (b == Backend::AVX512) [[likely]] {
-        simd::avx512::rmsnorm(out.data(), in.data(), weight.data(), in.size(), eps);
-    } else if (b == Backend::AVX2) {
-        simd::avx2::rmsnorm(out.data(), in.data(), weight.data(), in.size(), eps);
-    } else {
-        rmsnorm_scalar(out.data(), in.data(), weight.data(), in.size(), eps);
-    }
+    NCA_DISPATCH_KERNEL(simd::avx512::rmsnorm, simd::avx2::rmsnorm, rmsnorm_scalar, out.data(), in.data(), weight.data(), in.size(), eps);
 }
 
 } // namespace nca::math

@@ -19,16 +19,7 @@ void silu_scalar(float* __restrict data, size_t size) {
 }
 
 void silu(std::span<float> data) {
-    using simd::Backend;
-    Backend b = simd::best_backend();
-    
-    if (b == Backend::AVX512) [[likely]] {
-        simd::avx512::silu(data.data(), data.size());
-    } else if (b == Backend::AVX2) {
-        simd::avx2::silu(data.data(), data.size());
-    } else {
-        silu_scalar(data.data(), data.size());
-    }
+    NCA_DISPATCH_KERNEL(simd::avx512::silu, simd::avx2::silu, silu_scalar, data.data(), data.size());
 }
 
 } // namespace nca::math

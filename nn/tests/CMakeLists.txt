@@ -43,3 +43,10 @@ if(MSVC)
     target_compile_options(test_profiling PRIVATE /arch:AVX512)
 endif()
 target_link_libraries(test_profiling PRIVATE nca_core)
+
+# ── Phase 4: GLR Backbone ─────────────────────────────────────────────────
+add_executable(test_phase4_glr test_phase4_glr.cpp)
+if(MSVC)
+    target_compile_options(test_phase4_glr PRIVATE /arch:AVX512)
+endif()
+target_link_libraries(test_phase4_glr PRIVATE nca_core)
