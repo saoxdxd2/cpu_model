@@ -64,3 +64,11 @@
   - Validated scalar, AVX2, and AVX-512 versions individually against a `torch::rsqrt` LibTorch reference pipeline. All kernels passed with near-zero error margins (< 5e-07).
   - Validated the fully integrated `nca::math::rmsnorm()` API which automatically engaged the `AVX-512` backend.
   - Reached ~9.6x native speedup on AVX-512 versus standard scalar normalization loops.
+
+## 4. Phase 2: AMI Activations (Completed)
+- **Implemented Generic SIMD Math Headers**: Created `core/simd/avx512_math.hpp` and `core/simd/avx2_math.hpp` containing inline, globally accessible mathematical approximations (e.g., `exp_ps`, `silu_ps`) for massive code reuse across specialized unrolled loops.
+- **Branchless Math Operations**: Implemented a pure Minimax polynomial approximation for $2^{x \log_2 e}$ utilizing `_mm512_scalef_ps`, eliminating all `std::exp` branch delays.
+- **Activation API**: Added `nca::math::silu()` mapping to `core/activations.cpp`.
+- **Phase 2 Test Execution (`tests/test_phase2_activations.cpp`)**:
+  - Achieved an 11.6x speedup over scalar `std::exp` loops.
+  - Validated against `torch::silu` with error bounds < 5e-07.

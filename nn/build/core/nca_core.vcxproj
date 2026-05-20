@@ -338,6 +338,7 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
       <EnableEnhancedInstructionSet Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">AdvancedVectorExtensions512</EnableEnhancedInstructionSet>
     </ClCompile>
     <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\normalization.cpp" />
+    <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\activations.cpp" />
   </ItemGroup>
   <ItemGroup />
   <ItemGroup>

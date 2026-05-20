@@ -10,6 +10,7 @@
 // ============================================================================
 
 #include "core/simd/avx512_kernels.hpp"
+#include "core/simd/avx512_math.hpp"
 #include <immintrin.h>
 
 namespace nca::simd::avx512 {
@@ -53,15 +54,27 @@ void rmsnorm(float* __restrict out, const float* __restrict in, const float* __r
     
     // Pass 2: Normalize & Weight
     p_in = in; rem = size;
-    for (; rem >= 64; rem -= 64, p_in += 64, p_w += 64, p_out += 64) [[likely]] {
-        _mm_prefetch(reinterpret_cast<const char*>(p_in + 128), _MM_HINT_T0);
-        _mm_prefetch(reinterpret_cast<const char*>(p_w + 128), _MM_HINT_T0);
-        _mm_prefetch(reinterpret_cast<const char*>(p_out + 128), _MM_HINT_T0);
 
-        _mm512_storeu_ps(p_out,      _mm512_mul_ps(_mm512_mul_ps(_mm512_loadu_ps(p_in),      v_inv), _mm512_loadu_ps(p_w)));
-        _mm512_storeu_ps(p_out + 16, _mm512_mul_ps(_mm512_mul_ps(_mm512_loadu_ps(p_in + 16), v_inv), _mm512_loadu_ps(p_w + 16)));
-        _mm512_storeu_ps(p_out + 32, _mm512_mul_ps(_mm512_mul_ps(_mm512_loadu_ps(p_in + 32), v_inv), _mm512_loadu_ps(p_w + 32)));
-        _mm512_storeu_ps(p_out + 48, _mm512_mul_ps(_mm512_mul_ps(_mm512_loadu_ps(p_in + 48), v_inv), _mm512_loadu_ps(p_w + 48)));
+    // Fast path: 64-byte aligned non-temporal streaming (Bypasses cache for massive bandwidth savings)
+    if ((reinterpret_cast<uintptr_t>(p_out) % 64 == 0) && (reinterpret_cast<uintptr_t>(p_in) % 64 == 0) && (reinterpret_cast<uintptr_t>(p_w) % 64 == 0)) {
+        for (; rem >= 64; rem -= 64, p_in += 64, p_w += 64, p_out += 64) [[likely]] {
+            _mm512_stream_ps(p_out,      _mm512_mul_ps(_mm512_mul_ps(_mm512_load_ps(p_in),      v_inv), _mm512_load_ps(p_w)));
+            _mm512_stream_ps(p_out + 16, _mm512_mul_ps(_mm512_mul_ps(_mm512_load_ps(p_in + 16), v_inv), _mm512_load_ps(p_w + 16)));
+            _mm512_stream_ps(p_out + 32, _mm512_mul_ps(_mm512_mul_ps(_mm512_load_ps(p_in + 32), v_inv), _mm512_load_ps(p_w + 32)));
+            _mm512_stream_ps(p_out + 48, _mm512_mul_ps(_mm512_mul_ps(_mm512_load_ps(p_in + 48), v_inv), _mm512_load_ps(p_w + 48)));
+        }
+    } else {
+        // Standard unaligned path with prefetching
+        for (; rem >= 64; rem -= 64, p_in += 64, p_w += 64, p_out += 64) [[likely]] {
+            _mm_prefetch(reinterpret_cast<const char*>(p_in + 128), _MM_HINT_T0);
+            _mm_prefetch(reinterpret_cast<const char*>(p_w + 128), _MM_HINT_T0);
+            _mm_prefetch(reinterpret_cast<const char*>(p_out + 128), _MM_HINT_T0);
+
+            _mm512_storeu_ps(p_out,      _mm512_mul_ps(_mm512_mul_ps(_mm512_loadu_ps(p_in),      v_inv), _mm512_loadu_ps(p_w)));
+            _mm512_storeu_ps(p_out + 16, _mm512_mul_ps(_mm512_mul_ps(_mm512_loadu_ps(p_in + 16), v_inv), _mm512_loadu_ps(p_w + 16)));
+            _mm512_storeu_ps(p_out + 32, _mm512_mul_ps(_mm512_mul_ps(_mm512_loadu_ps(p_in + 32), v_inv), _mm512_loadu_ps(p_w + 32)));
+            _mm512_storeu_ps(p_out + 48, _mm512_mul_ps(_mm512_mul_ps(_mm512_loadu_ps(p_in + 48), v_inv), _mm512_loadu_ps(p_w + 48)));
+        }
     }
 
     for (; rem >= 16; rem -= 16, p_in += 16, p_w += 16, p_out += 16) [[unlikely]]
@@ -70,6 +83,37 @@ void rmsnorm(float* __restrict out, const float* __restrict in, const float* __r
     if (rem > 0) [[unlikely]] {
         __mmask16 mask = (1U << rem) - 1;
         _mm512_mask_storeu_ps(p_out, mask, _mm512_mul_ps(_mm512_mul_ps(_mm512_maskz_loadu_ps(mask, p_in), v_inv), _mm512_maskz_loadu_ps(mask, p_w)));
+    }
+}
+
+void silu(float* __restrict data, size_t size) {
+    float* p_data = data;
+    size_t rem = size;
+
+    if (reinterpret_cast<uintptr_t>(p_data) % 64 == 0) {
+        for (; rem >= 64; rem -= 64, p_data += 64) [[likely]] {
+            _mm512_stream_ps(p_data,      silu_ps(_mm512_load_ps(p_data)));
+            _mm512_stream_ps(p_data + 16, silu_ps(_mm512_load_ps(p_data + 16)));
+            _mm512_stream_ps(p_data + 32, silu_ps(_mm512_load_ps(p_data + 32)));
+            _mm512_stream_ps(p_data + 48, silu_ps(_mm512_load_ps(p_data + 48)));
+        }
+    } else {
+        for (; rem >= 64; rem -= 64, p_data += 64) [[likely]] {
+            _mm_prefetch(reinterpret_cast<const char*>(p_data + 128), _MM_HINT_T0);
+            
+            _mm512_storeu_ps(p_data,      silu_ps(_mm512_loadu_ps(p_data)));
+            _mm512_storeu_ps(p_data + 16, silu_ps(_mm512_loadu_ps(p_data + 16)));
+            _mm512_storeu_ps(p_data + 32, silu_ps(_mm512_loadu_ps(p_data + 32)));
+            _mm512_storeu_ps(p_data + 48, silu_ps(_mm512_loadu_ps(p_data + 48)));
+        }
+    }
+
+    for (; rem >= 16; rem -= 16, p_data += 16) [[unlikely]]
+        _mm512_storeu_ps(p_data, silu_ps(_mm512_loadu_ps(p_data)));
+
+    if (rem > 0) [[unlikely]] {
+        __mmask16 mask = (1U << rem) - 1;
+        _mm512_mask_storeu_ps(p_data, mask, silu_ps(_mm512_maskz_loadu_ps(mask, p_data)));
     }
 }
 

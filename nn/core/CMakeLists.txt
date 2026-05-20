@@ -18,7 +18,7 @@ add_library(nca_core STATIC
     # linalg/gemm.cpp
     # linalg/sparse_gemm.cpp
     # linalg/tucker_decomp.cpp
-    # activations.cpp
+    activations.cpp
 )
 
 target_include_directories(nca_core PUBLIC

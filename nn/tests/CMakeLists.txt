@@ -19,8 +19,27 @@ endif()
 # ── Phase 1: RMSNorm AMI Test ─────────────────────────────────────────────
 add_executable(test_phase1_rmsnorm test_phase1_rmsnorm.cpp)
 if(MSVC)
-    # AVX-512 intrinsic usage requires the architecture flag in MSVC 
-    # to guarantee __m512 registers are emitted properly.
     target_compile_options(test_phase1_rmsnorm PRIVATE /arch:AVX512)
 endif()
 target_link_libraries(test_phase1_rmsnorm PRIVATE nca_core ${TORCH_LIBRARIES})
+
+# ── Phase 2: Activations AMI Test ─────────────────────────────────────────
+add_executable(test_phase2_activations test_phase2_activations.cpp)
+if(MSVC)
+    target_compile_options(test_phase2_activations PRIVATE /arch:AVX512)
+endif()
+target_link_libraries(test_phase2_activations PRIVATE nca_core ${TORCH_LIBRARIES})
+
+# ── Phase 3: VNNI MX Math Test ────────────────────────────────────────────
+add_executable(test_phase3_vnni test_phase3_vnni.cpp)
+if(MSVC)
+    target_compile_options(test_phase3_vnni PRIVATE /arch:AVX512)
+endif()
+target_link_libraries(test_phase3_vnni PRIVATE nca_core ${TORCH_LIBRARIES})
+
+# ── Profiler Tool ─────────────────────────────────────────────────────────
+add_executable(test_profiling test_profiling.cpp)
+if(MSVC)
+    target_compile_options(test_profiling PRIVATE /arch:AVX512)
+endif()
+target_link_libraries(test_profiling PRIVATE nca_core)

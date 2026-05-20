@@ -13,6 +13,9 @@
     <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\normalization.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\activations.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="C:\Users\sao\Documents\cpu_model\nn\core\CMakeLists.txt" />

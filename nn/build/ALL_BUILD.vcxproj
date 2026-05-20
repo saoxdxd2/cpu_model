@@ -186,6 +186,18 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
       <Project>{9272DF6B-7146-3E97-8050-F4CF50602028}</Project>
       <Name>test_phase1_rmsnorm</Name>
     </ProjectReference>
+    <ProjectReference Include="C:\Users\sao\Documents\cpu_model\nn\build\tests\test_phase2_activations.vcxproj">
+      <Project>{9BD296AD-B833-3DA1-AD0A-FEF4621E3016}</Project>
+      <Name>test_phase2_activations</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\sao\Documents\cpu_model\nn\build\tests\test_phase3_vnni.vcxproj">
+      <Project>{BADCE226-34E3-3CD6-9A87-08C8B6980762}</Project>
+      <Name>test_phase3_vnni</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\sao\Documents\cpu_model\nn\build\tests\test_profiling.vcxproj">
+      <Project>{607D2733-0F69-3002-ADBD-003A490059B4}</Project>
+      <Name>test_profiling</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

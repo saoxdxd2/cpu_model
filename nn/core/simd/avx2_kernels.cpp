@@ -4,7 +4,9 @@
 // ============================================================================
 
 #include "core/simd/avx2_kernels.hpp"
+#include "core/simd/avx2_math.hpp"
 #include <immintrin.h>
+#include <cmath>
 
 namespace nca::simd::avx2 {
 
@@ -57,6 +59,27 @@ void rmsnorm(float* __restrict out, const float* __restrict in, const float* __r
 
     float inv_s = _mm256_cvtss_f32(v_inv);
     for (size_t i = 0; i < rem; ++i) p_out[i] = p_in[i] * inv_s * p_w[i];
+}
+
+void silu(float* __restrict data, size_t size) {
+    float* p_data = data;
+    size_t rem = size;
+
+    for (; rem >= 32; rem -= 32, p_data += 32) [[likely]] {
+        _mm_prefetch(reinterpret_cast<const char*>(p_data + 64), _MM_HINT_T0);
+        
+        _mm256_storeu_ps(p_data,      silu_ps(_mm256_loadu_ps(p_data)));
+        _mm256_storeu_ps(p_data + 8,  silu_ps(_mm256_loadu_ps(p_data + 8)));
+        _mm256_storeu_ps(p_data + 16, silu_ps(_mm256_loadu_ps(p_data + 16)));
+        _mm256_storeu_ps(p_data + 24, silu_ps(_mm256_loadu_ps(p_data + 24)));
+    }
+
+    for (; rem >= 8; rem -= 8, p_data += 8) [[unlikely]]
+        _mm256_storeu_ps(p_data, silu_ps(_mm256_loadu_ps(p_data)));
+
+    // Fast scalar remainder
+    for (size_t i = 0; i < rem; ++i) [[unlikely]]
+        p_data[i] = p_data[i] / (1.0f + std::exp(-p_data[i]));
 }
 
 } // namespace nca::simd::avx2
