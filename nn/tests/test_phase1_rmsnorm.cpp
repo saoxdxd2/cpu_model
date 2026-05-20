@@ -40,10 +40,15 @@ int main() {
     const float* w_ptr = weight.data_ptr<float>();
     const float* ref_ptr = ref_out.data_ptr<float>();
 
-    std::cout << "[1] Correctness Verification (API Dispatch)\n";
+    std::cout << "[1] Correctness Verification (C++20 API Dispatch)\n";
 
-    // Run API implementation (which dynamically selects backend)
-    nca::math::rmsnorm(out_api.data(), in_ptr, w_ptr, D, EPS);
+    // Create C++20 std::spans referencing the PyTorch managed memory
+    std::span<float> out_span(out_api.data(), D);
+    std::span<const float> in_span(x.data_ptr<float>(), D);
+    std::span<const float> w_span(weight.data_ptr<float>(), D);
+
+    // Run heavily optimized C++20 API implementation
+    nca::math::rmsnorm(out_span, in_span, w_span, EPS);
 
     // Verify
     float max_err = 0;
@@ -67,7 +72,7 @@ int main() {
 
     auto t0 = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < ITERS; ++i) {
-        nca::math::rmsnorm(out_api.data(), in_ptr, w_ptr, D, EPS);
+        nca::math::rmsnorm(out_span, in_span, w_span, EPS);
     }
     auto t1 = std::chrono::high_resolution_clock::now();
     double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
