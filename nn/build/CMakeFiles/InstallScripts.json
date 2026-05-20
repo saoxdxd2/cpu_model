@@ -1,0 +1,9 @@
+{
+	"InstallScripts" : 
+	[
+		"C:/Users/sao/Documents/cpu_model/nn/build/cmake_install.cmake",
+		"C:/Users/sao/Documents/cpu_model/nn/build/core/cmake_install.cmake",
+		"C:/Users/sao/Documents/cpu_model/nn/build/tests/cmake_install.cmake"
+	],
+	"Parallel" : false
+}
