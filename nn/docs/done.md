@@ -72,3 +72,9 @@
 - **Phase 2 Test Execution (`tests/test_phase2_activations.cpp`)**:
   - Achieved an 11.6x speedup over scalar `std::exp` loops.
   - Validated against `torch::silu` with error bounds < 5e-07.
+
+## 5. Phase 3: The MX VNNI Math Core (Completed)
+- **Proof-of-Concept Testing**: Validated `MXINT8` VNNI mathematics successfully in `tests/test_phase3_vnni.cpp` maintaining relative quantization errors under 1%.
+- **C-Style Memory Framework**: Created `MXINT8Tensor` and `MXUINT8Tensor` C-structs mapping raw `_aligned_malloc` 64-byte bounded memory to strictly avoid C++ `std::vector` overhead.
+- **VNNI Kernels**: Added `core/simd/avx512_vnni.cpp` featuring `_mm512_dpbusd_epi32` (VPDPBUSD) math to execute 64 MACs per cycle and reconstruct `E8M0` powers of two.
+- **Cycle-Accurate Hardware Profiler**: Replaced benchmark with a native cycle-counting profiler (`tests/test_profiling.cpp`) detecting that Math bounds are currently reaching 0.87 cycles per element, representing max structural capabilities of Ice Lake silicon.

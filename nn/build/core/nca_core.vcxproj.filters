@@ -10,10 +10,16 @@
     <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\simd\avx512_kernels.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\simd\avx512_vnni.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\normalization.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\activations.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\linalg\mx_linear.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

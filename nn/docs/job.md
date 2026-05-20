@@ -17,6 +17,14 @@ Always check this registry to reuse functions before writing new ones.
 - **Description**: Applies Swish (SiLU) Activation in-place.
 - **Backends**: Dynamically routes to AVX-512, AVX2, or Scalar.
 
+### 3. `mx_linear`
+- **Header**: `core/linalg/mx_linear.hpp`
+- **Description**: Exposes `MXINT8Tensor` and `MXUINT8Tensor` C-style structs allocating on exact 64-byte boundaries via `_aligned_malloc`.
+- **Signatures**: 
+  - `void mx_quantize_w(const float*, MXINT8Tensor*)`
+  - `float mx_dot(const MXINT8Tensor* w, const MXUINT8Tensor* x)`
+- **Backends**: `mx_dot` explicitly dispatches to `avx512::vnni_dot` requiring the hardware VNNI accelerator.
+
 ## `nca::simd::avx512` & `avx2` (Inline Math)
 - **Headers**: `core/simd/avx512_math.hpp` & `core/simd/avx2_math.hpp`
 - **Description**: Contains branchless `__m512` and `__m256` inline math approximations like `exp_ps()` and `silu_ps()`. Use these natively inside specialized loops to avoid duplicating algorithm logic.
