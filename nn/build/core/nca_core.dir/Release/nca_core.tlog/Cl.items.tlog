@@ -5,3 +5,4 @@ C:\Users\sao\Documents\cpu_model\nn\core\simd\avx512_vnni.cpp;C:\Users\sao\Docum
 C:\Users\sao\Documents\cpu_model\nn\core\normalization.cpp;C:\Users\sao\Documents\cpu_model\nn\build\core\nca_core.dir\Release\normalization.obj
 C:\Users\sao\Documents\cpu_model\nn\core\activations.cpp;C:\Users\sao\Documents\cpu_model\nn\build\core\nca_core.dir\Release\activations.obj
 C:\Users\sao\Documents\cpu_model\nn\core\linalg\mx_linear.cpp;C:\Users\sao\Documents\cpu_model\nn\build\core\nca_core.dir\Release\mx_linear.obj
+C:\Users\sao\Documents\cpu_model\nn\core\layers\glr.cpp;C:\Users\sao\Documents\cpu_model\nn\build\core\nca_core.dir\Release\glr.obj

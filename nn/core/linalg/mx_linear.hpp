@@ -16,6 +16,16 @@ inline float decode_e8m0_scale(uint8_t e) {
     return std::bit_cast<float>(bits);
 }
 
+inline uint8_t extract_e8m0(float max_abs) {
+    if (max_abs == 0.0f) return 0;
+    float scale = max_abs / 127.0f;
+    uint32_t bits = std::bit_cast<uint32_t>(scale);
+    uint32_t mantissa = bits & 0x7FFFFF;
+    uint8_t exp = (bits >> 23) & 0xFF;
+    if (mantissa > 0) exp += 1;
+    return exp;
+}
+
 // RAII wrapper for 64-byte aligned tensors to prevent manual lifecycle ceremony
 struct MXINT8Tensor {
     int8_t* __restrict data = nullptr;

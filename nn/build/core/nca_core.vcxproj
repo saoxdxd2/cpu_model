@@ -346,6 +346,7 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\normalization.cpp" />
     <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\activations.cpp" />
     <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\linalg\mx_linear.cpp" />
+    <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\layers\glr.cpp" />
   </ItemGroup>
   <ItemGroup />
   <ItemGroup>

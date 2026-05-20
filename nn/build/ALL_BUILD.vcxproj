@@ -178,29 +178,9 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
       <Project>{5B23D40D-478C-3E4E-A0AB-1D20C59C7024}</Project>
       <Name>nca_core</Name>
     </ProjectReference>
-    <ProjectReference Include="C:\Users\sao\Documents\cpu_model\nn\build\tests\test_phase0.vcxproj">
-      <Project>{42B8FC5B-0B7D-35B3-8C85-C342BBDE92B2}</Project>
-      <Name>test_phase0</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\sao\Documents\cpu_model\nn\build\tests\test_phase1_rmsnorm.vcxproj">
-      <Project>{9272DF6B-7146-3E97-8050-F4CF50602028}</Project>
-      <Name>test_phase1_rmsnorm</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\sao\Documents\cpu_model\nn\build\tests\test_phase2_activations.vcxproj">
-      <Project>{9BD296AD-B833-3DA1-AD0A-FEF4621E3016}</Project>
-      <Name>test_phase2_activations</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\sao\Documents\cpu_model\nn\build\tests\test_phase3_vnni.vcxproj">
-      <Project>{BADCE226-34E3-3CD6-9A87-08C8B6980762}</Project>
-      <Name>test_phase3_vnni</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\sao\Documents\cpu_model\nn\build\tests\test_phase4_glr.vcxproj">
-      <Project>{4F983FB1-F7C7-347D-A93D-57B55B9E586B}</Project>
-      <Name>test_phase4_glr</Name>
-    </ProjectReference>
-    <ProjectReference Include="C:\Users\sao\Documents\cpu_model\nn\build\tests\test_profiling.vcxproj">
-      <Project>{607D2733-0F69-3002-ADBD-003A490059B4}</Project>
-      <Name>test_profiling</Name>
+    <ProjectReference Include="C:\Users\sao\Documents\cpu_model\nn\build\tests\test_auto.vcxproj">
+      <Project>{1EA459BC-61EC-3251-A69E-28BB8DDB8B57}</Project>
+      <Name>test_auto</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

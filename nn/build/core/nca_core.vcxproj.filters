@@ -22,6 +22,9 @@
     <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\linalg\mx_linear.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\layers\glr.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="C:\Users\sao\Documents\cpu_model\nn\core\CMakeLists.txt" />

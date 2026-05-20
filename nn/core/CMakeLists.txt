@@ -18,6 +18,9 @@ add_library(nca_core STATIC
     
     # ── Linear Algebra ──
     linalg/mx_linear.cpp
+
+    # ── Backbone Layers ──
+    layers/glr.cpp
 )
 
 target_include_directories(nca_core PUBLIC

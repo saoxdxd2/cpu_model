@@ -1,9 +1,5 @@
 C:/Users/sao/Documents/cpu_model/nn/build/CMakeFiles/ALL_BUILD.dir
 C:/Users/sao/Documents/cpu_model/nn/build/CMakeFiles/ZERO_CHECK.dir
 C:/Users/sao/Documents/cpu_model/nn/build/core/CMakeFiles/nca_core.dir
-C:/Users/sao/Documents/cpu_model/nn/build/tests/CMakeFiles/test_phase0.dir
-C:/Users/sao/Documents/cpu_model/nn/build/tests/CMakeFiles/test_phase1_rmsnorm.dir
-C:/Users/sao/Documents/cpu_model/nn/build/tests/CMakeFiles/test_phase2_activations.dir
-C:/Users/sao/Documents/cpu_model/nn/build/tests/CMakeFiles/test_phase3_vnni.dir
-C:/Users/sao/Documents/cpu_model/nn/build/tests/CMakeFiles/test_profiling.dir
-C:/Users/sao/Documents/cpu_model/nn/build/tests/CMakeFiles/test_phase4_glr.dir
+C:/Users/sao/Documents/cpu_model/nn/build/tests/CMakeFiles/test_auto.dir
+C:/Users/sao/Documents/cpu_model/nn/build/tests/CMakeFiles/ALL_BUILD.dir
