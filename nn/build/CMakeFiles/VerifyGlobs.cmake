@@ -21,6 +21,7 @@ set(OLD_GLOB
   "C:/Users/sao/Documents/cpu_model/nn/core/simd/avx512_vnni.hpp"
   "C:/Users/sao/Documents/cpu_model/nn/core/simd/cache_policy.hpp"
   "C:/Users/sao/Documents/cpu_model/nn/core/simd/dispatch.hpp"
+  "C:/Users/sao/Documents/cpu_model/nn/core/simd/memory.hpp"
   "C:/Users/sao/Documents/cpu_model/nn/core/vision/scanner.hpp"
   )
 if(NOT "${NEW_GLOB}" STREQUAL "${OLD_GLOB}")

@@ -64,57 +64,65 @@ void ssm_step_avx512(
     size_t d_inner
 ) {
     // d_state == 16 → one __m512 register per state vector.
-    // B, C are broadcast-hoisted — they stay in registers the entire kernel.
     __m512 v_B = _mm512_loadu_ps(B);
     __m512 v_C = _mm512_loadu_ps(C);
 
-    // Policy::prefetch_dist = 8 cache lines = 512 bytes ahead
-    constexpr size_t PF = Policy::prefetch_dist;
+    // ── L1 TILING (The Google "Keep it under L1" Technique) ──────────────────
+    // Instead of processing the entire d_inner in one pass (Brute Force),
+    // we divide it into tiles that fit perfectly in the 32KB L1d cache.
+    // Each channel uses: 64 (h) + 64 (A) + 4 (x) + 4 (y) = 136 bytes.
+    // Tile size 192 channels = 192 * 136 = 26,112 bytes (~80% of L1).
+    // This ensures that while we compute, the next lines are fetched from
+    // L1/L2 instead of stalling for DDR4.
+    constexpr size_t TILE_SIZE = 192;
+    
+    for (size_t t = 0; t < d_inner; t += TILE_SIZE) {
+        size_t t_end = (t + TILE_SIZE > d_inner) ? d_inner : t + TILE_SIZE;
+        size_t d = t;
 
-    // 4x unrolled: 4 channels = 4 cache lines of h[] + 4 of A[] per iteration
-    size_t d = 0;
-    for (; d + 4 <= d_inner; d += 4) [[likely]] {
-        // Prefetch ahead: compile-time distance from CachePolicy
-        if constexpr (PF > 0) {
-            _mm_prefetch(reinterpret_cast<const char*>(&h[(d+PF) * 16]), _MM_HINT_T0);
-            _mm_prefetch(reinterpret_cast<const char*>(&A[(d+PF) * 16]), _MM_HINT_T0);
+        // Process tile with 4x unrolling
+        for (; d + 4 <= t_end; d += 4) [[likely]] {
+            // Prefetch within the tile is less critical if it stays in L1, 
+            // but we prefetch the NEXT tile to hide the L2->L1 latency.
+            if constexpr (Policy::prefetch_dist > 0) {
+                _mm_prefetch(reinterpret_cast<const char*>(&h[(d + TILE_SIZE) * 16]), _MM_HINT_T0);
+                _mm_prefetch(reinterpret_cast<const char*>(&A[(d + TILE_SIZE) * 16]), _MM_HINT_T0);
+            }
+
+            __m512 v_x0 = _mm512_set1_ps(x[d]);
+            __m512 v_x1 = _mm512_set1_ps(x[d+1]);
+            __m512 v_x2 = _mm512_set1_ps(x[d+2]);
+            __m512 v_x3 = _mm512_set1_ps(x[d+3]);
+
+            __m512 v_h0 = _mm512_loadu_ps(&h[d * 16]);
+            __m512 v_h1 = _mm512_loadu_ps(&h[(d+1) * 16]);
+            __m512 v_h2 = _mm512_loadu_ps(&h[(d+2) * 16]);
+            __m512 v_h3 = _mm512_loadu_ps(&h[(d+3) * 16]);
+
+            v_h0 = _mm512_fmadd_ps(_mm512_loadu_ps(&A[d * 16]),     v_h0, _mm512_mul_ps(v_B, v_x0));
+            v_h1 = _mm512_fmadd_ps(_mm512_loadu_ps(&A[(d+1) * 16]), v_h1, _mm512_mul_ps(v_B, v_x1));
+            v_h2 = _mm512_fmadd_ps(_mm512_loadu_ps(&A[(d+2) * 16]), v_h2, _mm512_mul_ps(v_B, v_x2));
+            v_h3 = _mm512_fmadd_ps(_mm512_loadu_ps(&A[(d+3) * 16]), v_h3, _mm512_mul_ps(v_B, v_x3));
+
+            _mm512_storeu_ps(&h[d * 16],     v_h0);
+            _mm512_storeu_ps(&h[(d+1) * 16], v_h1);
+            _mm512_storeu_ps(&h[(d+2) * 16], v_h2);
+            _mm512_storeu_ps(&h[(d+3) * 16], v_h3);
+
+            y[d]   = _mm512_reduce_add_ps(_mm512_mul_ps(v_h0, v_C));
+            y[d+1] = _mm512_reduce_add_ps(_mm512_mul_ps(v_h1, v_C));
+            y[d+2] = _mm512_reduce_add_ps(_mm512_mul_ps(v_h2, v_C));
+            y[d+3] = _mm512_reduce_add_ps(_mm512_mul_ps(v_h3, v_C));
         }
 
-        __m512 v_x0 = _mm512_set1_ps(x[d]);
-        __m512 v_x1 = _mm512_set1_ps(x[d+1]);
-        __m512 v_x2 = _mm512_set1_ps(x[d+2]);
-        __m512 v_x3 = _mm512_set1_ps(x[d+3]);
-
-        __m512 v_h0 = _mm512_loadu_ps(&h[d * 16]);
-        __m512 v_h1 = _mm512_loadu_ps(&h[(d+1) * 16]);
-        __m512 v_h2 = _mm512_loadu_ps(&h[(d+2) * 16]);
-        __m512 v_h3 = _mm512_loadu_ps(&h[(d+3) * 16]);
-
-        // FMA: h = A*h + B*x (all in registers, zero extra loads for B)
-        v_h0 = _mm512_fmadd_ps(_mm512_loadu_ps(&A[d * 16]),     v_h0, _mm512_mul_ps(v_B, v_x0));
-        v_h1 = _mm512_fmadd_ps(_mm512_loadu_ps(&A[(d+1) * 16]), v_h1, _mm512_mul_ps(v_B, v_x1));
-        v_h2 = _mm512_fmadd_ps(_mm512_loadu_ps(&A[(d+2) * 16]), v_h2, _mm512_mul_ps(v_B, v_x2));
-        v_h3 = _mm512_fmadd_ps(_mm512_loadu_ps(&A[(d+3) * 16]), v_h3, _mm512_mul_ps(v_B, v_x3));
-
-        // h[] is read-modify-write → regular stores (NT would evict before reduce)
-        _mm512_storeu_ps(&h[d * 16],     v_h0);
-        _mm512_storeu_ps(&h[(d+1) * 16], v_h1);
-        _mm512_storeu_ps(&h[(d+2) * 16], v_h2);
-        _mm512_storeu_ps(&h[(d+3) * 16], v_h3);
-
-        // Output projection: y = reduce(C * h)
-        y[d]   = _mm512_reduce_add_ps(_mm512_mul_ps(v_h0, v_C));
-        y[d+1] = _mm512_reduce_add_ps(_mm512_mul_ps(v_h1, v_C));
-        y[d+2] = _mm512_reduce_add_ps(_mm512_mul_ps(v_h2, v_C));
-        y[d+3] = _mm512_reduce_add_ps(_mm512_mul_ps(v_h3, v_C));
-    }
-    // Scalar tail (at most 3 iterations — not worth masking)
-    for (; d < d_inner; ++d) {
-        __m512 v_x = _mm512_set1_ps(x[d]);
-        __m512 v_h = _mm512_loadu_ps(&h[d * 16]);
-        v_h = _mm512_fmadd_ps(_mm512_loadu_ps(&A[d * 16]), v_h, _mm512_mul_ps(v_B, v_x));
-        _mm512_storeu_ps(&h[d * 16], v_h);
-        y[d] = _mm512_reduce_add_ps(_mm512_mul_ps(v_h, v_C));
+        // Handle tile tail
+        for (; d < t_end; ++d) {
+            __m512 v_x = _mm512_set1_ps(x[d]);
+            __m512 v_h = _mm512_loadu_ps(&h[d * 16]);
+            v_h = _mm512_fmadd_ps(_mm512_loadu_ps(&A[d * 16]), v_h, _mm512_mul_ps(v_B, v_x));
+            _mm512_storeu_ps(&h[d * 16], v_h);
+            y[d] = _mm512_reduce_add_ps(_mm512_mul_ps(v_h, v_C));
+        }
     }
 }
 #endif

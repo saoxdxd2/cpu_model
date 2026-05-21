@@ -17,6 +17,7 @@
 #include "core/simd/avx512_vnni.hpp"
 #include "core/simd/cache_policy.hpp"
 #include "core/simd/dispatch.hpp"
+#include "core/simd/memory.hpp"
 #include "core/vision/scanner.hpp"
 
 int main() {
@@ -35,6 +36,7 @@ int main() {
     nca::testing::run_benchmark("nca::linalg::mx_quantize_x", &nca::linalg::mx_quantize_x);
     nca::testing::run_benchmark("nca::linalg::mx_fused_silu_quantize_x", &nca::linalg::mx_fused_silu_quantize_x);
     nca::testing::run_benchmark("nca::linalg::mx_dot", &nca::linalg::mx_dot);
+    nca::testing::run_benchmark("nca::linalg::mx_dual_dot", &nca::linalg::mx_dual_dot);
     nca::testing::run_benchmark("nca::linalg::mx_gemv", &nca::linalg::mx_gemv);
     nca::testing::run_benchmark("nca::math::rmsnorm", &nca::math::rmsnorm);
     nca::testing::run_benchmark("nca::vision::dwconv2d_3x3", &nca::vision::dwconv2d_3x3);

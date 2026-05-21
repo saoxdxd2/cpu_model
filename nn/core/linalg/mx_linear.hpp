@@ -4,6 +4,7 @@
 // core/linalg/mx_linear.hpp
 // ============================================================================
 
+#include "core/simd/memory.hpp"
 #include <cstdint>
 #include <cstddef>
 #include <bit>
@@ -26,16 +27,21 @@ inline uint8_t extract_e8m0(float max_abs) {
     return exp;
 }
 
-// RAII wrapper for 64-byte aligned tensors to prevent manual lifecycle ceremony
+// RAII wrapper for 64-byte aligned tensors
 struct MXINT8Tensor {
-    int8_t* __restrict data = nullptr;
-    uint8_t* __restrict scales = nullptr;
-    int32_t* __restrict w_sums = nullptr; // Precomputed sums for activation zero-point shift
+    int8_t*  data = nullptr;
+    uint8_t* scales = nullptr;
+    int32_t* w_sums = nullptr;
     size_t num_blocks = 0;
+
+    // Ownership handles (Smart Pointers)
+    nca::simd::aligned_unique_ptr<int8_t[]>  data_ptr;
+    nca::simd::aligned_unique_ptr<uint8_t[]> scales_ptr;
+    nca::simd::aligned_unique_ptr<int32_t[]> w_sums_ptr;
 
     MXINT8Tensor() = default;
     explicit MXINT8Tensor(size_t blocks);
-    ~MXINT8Tensor();
+    ~MXINT8Tensor() = default;
 
     MXINT8Tensor(const MXINT8Tensor&) = delete;
     MXINT8Tensor& operator=(const MXINT8Tensor&) = delete;
@@ -45,13 +51,17 @@ struct MXINT8Tensor {
 };
 
 struct MXUINT8Tensor {
-    uint8_t* __restrict data = nullptr;
-    uint8_t* __restrict scales = nullptr;
+    uint8_t* data = nullptr;
+    uint8_t* scales = nullptr;
     size_t num_blocks = 0;
+
+    // Ownership handles
+    nca::simd::aligned_unique_ptr<uint8_t[]> data_ptr;
+    nca::simd::aligned_unique_ptr<uint8_t[]> scales_ptr;
 
     MXUINT8Tensor() = default;
     explicit MXUINT8Tensor(size_t blocks);
-    ~MXUINT8Tensor();
+    ~MXUINT8Tensor() = default;
 
     MXUINT8Tensor(const MXUINT8Tensor&) = delete;
     MXUINT8Tensor& operator=(const MXUINT8Tensor&) = delete;
@@ -66,10 +76,14 @@ void mx_fused_silu_quantize_x(const float* __restrict in, MXUINT8Tensor& out);
 
 float mx_dot(const MXINT8Tensor& w, const MXUINT8Tensor& x);
 
-// Matrix-Vector Multiplication: y = W * x
-// W: [rows, cols] (MXINT8)
-// x: [cols] (MXUINT8)
-// y: [rows] (float)
+void mx_dual_dot(
+    const MXINT8Tensor& w0,
+    const MXINT8Tensor& w1,
+    const MXUINT8Tensor& x,
+    float& out0,
+    float& out1
+);
+
 void mx_gemv(const MXINT8Tensor& W, const MXUINT8Tensor& x, float* y, size_t rows, size_t cols);
 
 } // namespace nca::linalg

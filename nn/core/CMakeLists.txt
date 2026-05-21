@@ -43,8 +43,15 @@ target_link_libraries(nca_core PUBLIC
 
 # ── SIMD compilation flags for kernel files ──────────────────────────────
 if(MSVC)
+    # Apply AVX2/AVX512 to the whole core library to avoid TU-mismatches and ensure
+    # that the dispatcher always has access to the fast paths.
+    target_compile_options(nca_core PRIVATE "/arch:AVX512")
+    
+    # Specific kernels still keep their flags for clarity, though redundant now
     set_source_files_properties(simd/avx2_kernels.cpp
         PROPERTIES COMPILE_FLAGS "/arch:AVX2")
     set_source_files_properties(simd/avx512_kernels.cpp simd/avx512_vnni.cpp
         PROPERTIES COMPILE_FLAGS "/arch:AVX512")
+else()
+    target_compile_options(nca_core PRIVATE -mavx512f -mavx512bw -mavx512vl -mavx512vnni)
 endif()

@@ -11,57 +11,113 @@
 namespace nca::simd::avx512 {
 
 float vnni_dot(const nca::linalg::MXINT8Tensor* __restrict w, const nca::linalg::MXUINT8Tensor* __restrict x) {
-    float global_sum = 0.0f;
-    size_t b = 0;
     size_t num_blocks = std::min(w->num_blocks, x->num_blocks);
-    
     __m512 v_acc_global = _mm512_setzero_ps();
     
-    for (; b <= num_blocks - 2; b += 2) [[likely]] {
+    size_t b = 0;
+    for (; b + 2 <= num_blocks; b += 2) [[likely]] {
         __m512i vW = _mm512_stream_load_si512((__m512i*)&w->data[b * 32]);
         __m512i vX = _mm512_load_si512((const __m512i*)&x->data[b * 32]);
         
         __m512i acc = _mm512_dpbusd_epi32(_mm512_setzero_si512(), vX, vW);
         __m512 f_acc = _mm512_cvtepi32_ps(acc);
         
-        // Zero-point correction
-        __m256 v_corr0 = _mm256_set1_ps(16.0f * w->w_sums[b]);
-        __m256 v_corr1 = _mm256_set1_ps(16.0f * w->w_sums[b+1]);
-        __m512 v_corr = _mm512_insertf32x8(_mm512_castps256_ps512(v_corr0), v_corr1, 1);
+        __m512 v_corr = _mm512_mask_blend_ps(0x00FF, _mm512_setzero_ps(), _mm512_set1_ps(128.0f * w->w_sums[b]));
+        v_corr = _mm512_mask_blend_ps(0xFF00, v_corr, _mm512_set1_ps(128.0f * w->w_sums[b+1]));
         f_acc = _mm512_sub_ps(f_acc, v_corr);
         
         float s0 = nca::linalg::decode_e8m0_scale(w->scales[b]) * nca::linalg::decode_e8m0_scale(x->scales[b]);
         float s1 = nca::linalg::decode_e8m0_scale(w->scales[b+1]) * nca::linalg::decode_e8m0_scale(x->scales[b+1]);
+        __m512 v_scales = _mm512_mask_blend_ps(0x00FF, _mm512_setzero_ps(), _mm512_set1_ps(s0));
+        v_scales = _mm512_mask_blend_ps(0xFF00, v_scales, _mm512_set1_ps(s1));
         
-        __m256 v_s0 = _mm256_set1_ps(s0);
-        __m256 v_s1 = _mm256_set1_ps(s1);
-        __m512 v_scales = _mm512_insertf32x8(_mm512_castps256_ps512(v_s0), v_s1, 1);
-        
-        f_acc = _mm512_mul_ps(f_acc, v_scales);
-        v_acc_global = _mm512_add_ps(v_acc_global, f_acc);
+        v_acc_global = _mm512_fmadd_ps(f_acc, v_scales, v_acc_global);
     }
     
-    global_sum = _mm512_reduce_add_ps(v_acc_global);
-    
-    if (b < num_blocks) [[unlikely]] {
+    float global_sum = _mm512_reduce_add_ps(v_acc_global);
+    for (; b < num_blocks; ++b) {
         __m256i vW = _mm256_load_si256((const __m256i*)&w->data[b * 32]);
         __m256i vX = _mm256_load_si256((const __m256i*)&x->data[b * 32]);
         __m256i acc = _mm256_dpbusd_epi32(_mm256_setzero_si256(), vX, vW);
-        __m256 f_acc = _mm256_cvtepi32_ps(acc);
+        __m128i low = _mm256_castsi256_si128(acc);
+        __m128i high = _mm256_extracti128_si256(acc, 1);
+        __m128i combined = _mm_add_epi32(low, high);
+        combined = _mm_add_epi32(combined, _mm_srli_si128(combined, 8));
+        combined = _mm_add_epi32(combined, _mm_srli_si128(combined, 4));
+        float block_sum = static_cast<float>(_mm_cvtsi128_si32(combined));
+        block_sum -= 128.0f * w->w_sums[b];
+        block_sum *= nca::linalg::decode_e8m0_scale(w->scales[b]) * nca::linalg::decode_e8m0_scale(x->scales[b]);
+        global_sum += block_sum;
+    }
+    return global_sum;
+}
+
+void dual_vnni_dot(
+    const nca::linalg::MXINT8Tensor* __restrict w0,
+    const nca::linalg::MXINT8Tensor* __restrict w1,
+    const nca::linalg::MXUINT8Tensor* __restrict x,
+    float& out0,
+    float& out1
+) {
+    size_t num_blocks = x->num_blocks;
+    __m512 v_acc0 = _mm512_setzero_ps();
+    __m512 v_acc1 = _mm512_setzero_ps();
+    
+    size_t b = 0;
+    for (; b + 2 <= num_blocks; b += 2) [[likely]] {
+        __m512i vX = _mm512_load_si512((const __m512i*)&x->data[b * 32]);
+        __m512i vW0 = _mm512_stream_load_si512((__m512i*)&w0->data[b * 32]);
+        __m512i vW1 = _mm512_stream_load_si512((__m512i*)&w1->data[b * 32]);
         
-        __m256 v_corr = _mm256_set1_ps(16.0f * w->w_sums[b]);
-        f_acc = _mm256_sub_ps(f_acc, v_corr);
+        __m512i i_acc0 = _mm512_dpbusd_epi32(_mm512_setzero_si512(), vX, vW0);
+        __m512i i_acc1 = _mm512_dpbusd_epi32(_mm512_setzero_si512(), vX, vW1);
         
-        float s = nca::linalg::decode_e8m0_scale(w->scales[b]) * nca::linalg::decode_e8m0_scale(x->scales[b]);
-        f_acc = _mm256_mul_ps(f_acc, _mm256_set1_ps(s));
-        
-        __m128 v_low = _mm_add_ps(_mm256_castps256_ps128(f_acc), _mm256_extractf128_ps(f_acc, 1));
-        v_low = _mm_hadd_ps(v_low, v_low);
-        v_low = _mm_hadd_ps(v_low, v_low);
-        global_sum += _mm_cvtss_f32(v_low);
+        __m512 f_acc0 = _mm512_cvtepi32_ps(i_acc0);
+        __m512 f_acc1 = _mm512_cvtepi32_ps(i_acc1);
+
+        // Vectorized Meta 0
+        __m512 v_corr0 = _mm512_mask_blend_ps(0x00FF, _mm512_setzero_ps(), _mm512_set1_ps(128.0f * w0->w_sums[b]));
+        v_corr0 = _mm512_mask_blend_ps(0xFF00, v_corr0, _mm512_set1_ps(128.0f * w0->w_sums[b+1]));
+        f_acc0 = _mm512_sub_ps(f_acc0, v_corr0);
+        float s0_0 = nca::linalg::decode_e8m0_scale(w0->scales[b]) * nca::linalg::decode_e8m0_scale(x->scales[b]);
+        float s0_1 = nca::linalg::decode_e8m0_scale(w0->scales[b+1]) * nca::linalg::decode_e8m0_scale(x->scales[b+1]);
+        __m512 v_sc0 = _mm512_mask_blend_ps(0x00FF, _mm512_setzero_ps(), _mm512_set1_ps(s0_0));
+        v_sc0 = _mm512_mask_blend_ps(0xFF00, v_sc0, _mm512_set1_ps(s0_1));
+        v_acc0 = _mm512_fmadd_ps(f_acc0, v_sc0, v_acc0);
+
+        // Vectorized Meta 1
+        __m512 v_corr1 = _mm512_mask_blend_ps(0x00FF, _mm512_setzero_ps(), _mm512_set1_ps(128.0f * w1->w_sums[b]));
+        v_corr1 = _mm512_mask_blend_ps(0xFF00, v_corr1, _mm512_set1_ps(128.0f * w1->w_sums[b+1]));
+        f_acc1 = _mm512_sub_ps(f_acc1, v_corr1);
+        float s1_0 = nca::linalg::decode_e8m0_scale(w1->scales[b]) * nca::linalg::decode_e8m0_scale(x->scales[b]);
+        float s1_1 = nca::linalg::decode_e8m0_scale(w1->scales[b+1]) * nca::linalg::decode_e8m0_scale(x->scales[b+1]);
+        __m512 v_sc1 = _mm512_mask_blend_ps(0x00FF, _mm512_setzero_ps(), _mm512_set1_ps(s1_0));
+        v_sc1 = _mm512_mask_blend_ps(0xFF00, v_sc1, _mm512_set1_ps(s1_1));
+        v_acc1 = _mm512_fmadd_ps(f_acc1, v_sc1, v_acc1);
     }
     
-    return global_sum;
+    out0 = _mm512_reduce_add_ps(v_acc0);
+    out1 = _mm512_reduce_add_ps(v_acc1);
+    
+    // Tail
+    for (; b < num_blocks; ++b) {
+        auto step = [&](const nca::linalg::MXINT8Tensor* w) {
+            __m256i vW = _mm256_load_si256((const __m256i*)&w->data[b * 32]);
+            __m256i vX = _mm256_load_si256((const __m256i*)&x->data[b * 32]);
+            __m256i acc = _mm256_dpbusd_epi32(_mm256_setzero_si256(), vX, vW);
+            __m128i low = _mm256_castsi256_si128(acc);
+            __m128i high = _mm256_extracti128_si256(acc, 1);
+            __m128i combined = _mm_add_epi32(low, high);
+            combined = _mm_add_epi32(combined, _mm_srli_si128(combined, 8));
+            combined = _mm_add_epi32(combined, _mm_srli_si128(combined, 4));
+            float sum = static_cast<float>(_mm_cvtsi128_si32(combined));
+            sum -= 128.0f * w->w_sums[b];
+            sum *= nca::linalg::decode_e8m0_scale(w->scales[b]) * nca::linalg::decode_e8m0_scale(x->scales[b]);
+            return sum;
+        };
+        out0 += step(w0);
+        out1 += step(w1);
+    }
 }
 
 void mx_quantize_x(const float* __restrict in, nca::linalg::MXUINT8Tensor* __restrict out) {
