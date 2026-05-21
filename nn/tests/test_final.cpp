@@ -16,9 +16,10 @@ int main() {
 
     nca::execution::MultimodalEngine engine;
 
-    alignas(64) float text_in[2048] = {1.0f};
-    alignas(64) float img_in[16 * 16 * 32] = {0.5f};
-    alignas(64) float out[2048];
+    // Correct sizes based on ScannerConfig defaults (16, 16, 128)
+    alignas(64) float text_in[nca::config::D_MODEL] = {1.0f};
+    alignas(64) float img_in[16 * 16 * 128] = {0.5f}; 
+    alignas(64) float out[nca::config::D_MODEL];
 
     std::cout << "  [RUN ] Integrated Multimodal Step... " << std::flush;
     
@@ -32,9 +33,8 @@ int main() {
     std::cout << "    Step Latency  : " << ms << " ms\n";
     std::cout << "    Effective Speed: " << (1000.0 / ms) << " tokens/s\n\n";
 
-    // Verify output isn't zero
     float sum = 0;
-    for(int i=0; i<2048; ++i) sum += std::abs(out[i]);
+    for(int i=0; i<nca::config::D_MODEL; ++i) sum += std::abs(out[i]);
     
     if (sum > 0) {
         std::cout << "  [PASS] Neural Circuit Synthesis Active.\n";

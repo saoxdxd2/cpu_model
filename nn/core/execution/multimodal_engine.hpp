@@ -5,6 +5,8 @@
 // ============================================================================
 
 #include "core/simd/memory.hpp"
+#include "core/execution/latent_adapter.hpp"
+#include "core/linalg/mx_linear.hpp"
 #include <memory>
 #include <vector>
 
@@ -19,11 +21,27 @@ public:
     void step(const float* text_in, const float* image_in, float* out);
 
 private:
-    // Internal Aligned Buffers (L1-hot)
+    // ── PERSISTENT WEIGHT ANCHORS ───────────────────────────────────────────
+    // Vision Weights
+    nca::simd::aligned_unique_ptr<float[]> W_vision_A_;
+    nca::simd::aligned_unique_ptr<float[]> W_vision_B_;
+    nca::simd::aligned_unique_ptr<float[]> W_vision_C_;
+
+    // Logic Weights (Backbone)
+    nca::simd::aligned_unique_ptr<float[]> W_glr_alpha_;
+    nca::simd::aligned_unique_ptr<float[]> W_glr_beta_;
+    std::vector<nca::linalg::MXINT8Tensor> W_mlp_gate_;
+    std::vector<nca::linalg::MXINT8Tensor> W_mlp_up_;
+    
+    // Bridge Core
+    nca::execution::LatentAdapter adapter_;
+    
+    // Halting Core
+    nca::linalg::MXINT8Tensor W_halt_;
+
+    // ── PERSISTENT STATE BUFFERS (L1-HOT) ───────────────────────────────────
     nca::simd::aligned_unique_ptr<float[]> state_;
     nca::simd::aligned_unique_ptr<float[]> vision_latent_;
-    
-    // Recursive State
     nca::simd::aligned_unique_ptr<float[]> h_glr_;
     nca::simd::aligned_unique_ptr<float[]> h_ssm_;
 };

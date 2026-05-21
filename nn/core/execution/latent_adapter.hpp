@@ -5,8 +5,7 @@
 // ============================================================================
 
 #include "core/linalg/mx_linear.hpp"
-#include "core/simd/memory.hpp"
-#include <memory>
+#include <vector>
 
 namespace nca::execution {
 
@@ -18,8 +17,8 @@ public:
     void project(const float* in, float* out);
 
 private:
-    // Aligned weights for the adapter core
-    nca::simd::aligned_unique_ptr<nca::linalg::MXINT8Tensor[]> weights_;
+    // Using vector to handle destructors of MXINT8Tensor correctly
+    std::vector<nca::linalg::MXINT8Tensor> weights_;
 };
 
 } // namespace nca::execution
