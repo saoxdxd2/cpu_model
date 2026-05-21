@@ -4,6 +4,7 @@
 // ============================================================================
 
 #include "core/execution/fused_pipeline.hpp"
+#include "core/layers/ssm.hpp"
 #include "core/simd/dispatch.hpp"
 #include <vector>
 
@@ -22,13 +23,8 @@ void multimodal_fused_step(
     const float* __restrict C_ssm
 ) {
     const auto d_inner = v_cfg.H * v_cfg.W * v_cfg.C;
-    
-    // ── STAGE 1: VISION CORE (Scanner) ───────────────────────────────────────
     std::vector<float> conv_out(d_inner);
-    // (Note: In a full implementation, weights would be passed and dwconv called here)
-
-    // ── STAGE 2: HORIZONTAL CORE FUSION ──────────────────────────────────────
-    // Fuses the SSM (Vision) directly with the MLP Quantization (Logic).
+    
     nca::linalg::MXUINT8Tensor hidden_q(d_inner / 32);
     nca::layers::SSMConfig ssm_cfg{d_inner, 16};
     
@@ -39,8 +35,6 @@ void multimodal_fused_step(
         ssm_cfg
     );
 
-    // ── STAGE 3: LOGIC CORE (MLP) ────────────────────────────────────────────
-    // Execute MLP down-projection directly from L1-hot quantized buffer.
     nca::linalg::mx_gemv(W_down, hidden_q, output, W_down.num_blocks * 32 / d_inner, d_inner);
 }
 

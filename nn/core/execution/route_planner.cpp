@@ -107,11 +107,16 @@ size_t plan_route_topk(
     RoutePlan& out_plan
 ) {
     auto actual_k = std::min({k, total_tokens, out_plan.max_capacity});
+    if (actual_k == 0) return 0;
 
+    // ── COMPLEXITY DESTRUCTION: O(N) QUICK-SELECT ───────────────────────────
+    // Instead of sorting (O(N log N)) or partial sorting (O(N log K)), 
+    // we use Quick-Select (O(N)) to find the K-th largest element.
+    // This is the "Google/V8" approach to finding hot items in a stream.
     std::vector<size_t> indices(total_tokens);
     std::iota(indices.begin(), indices.end(), 0);
 
-    std::partial_sort(
+    std::nth_element(
         indices.begin(), 
         indices.begin() + actual_k, 
         indices.end(),
@@ -120,10 +125,13 @@ size_t plan_route_topk(
         }
     );
 
+    // After nth_element, indices[0...actual_k-1] are the top-K in arbitrary order.
+    // We physically copy them to the plan.
     for (size_t i = 0; i < actual_k; ++i) {
         out_plan.active_indices[i] = indices[i];
     }
     
+    // Sort output indices to ensure sequential memory access in downstream cores.
     std::sort(out_plan.active_indices, out_plan.active_indices + actual_k);
 
     out_plan.num_active = actual_k;

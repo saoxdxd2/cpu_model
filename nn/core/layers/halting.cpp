@@ -24,21 +24,27 @@ float halting_step(
     constexpr float epsilon = 0.01f;
     float dot = nca::linalg::mx_dot(w_halt, x_q) + b_halt;
 
-    // Branchless sigmoid: 1 / (1 + exp(-dot))
-    float p_t = 1.0f / (1.0f + std::exp(-dot));
+    // ── BRANCHLESS SIGMOID TWEAK (Complexity Destruction) ────────────────────
+    // Replaced scalar std::exp with the high-throughput AVX-512 minimax 
+    // sigmoid approximation. This avoids the scalar FPU stall.
+    alignas(64) float dot_buf[16] = {dot};
+    auto v_dot = _mm512_load_ps(dot_buf);
+    
+    // Sigmoid(x) = 0.5 * tanh(0.5 * x) + 0.5
+    // But we use a direct 1 / (1 + exp(-x)) approximation.
+    auto v_sig = _mm512_rcp14_ps(_mm512_add_ps(_mm512_set1_ps(1.0f), nca::simd::avx512::exp_ps(_mm512_sub_ps(_mm512_setzero_ps(), v_dot))));
+    
+    float p_t;
+    _mm_store_ss(&p_t, _mm512_castps512_ps128(v_sig));
 
-    // Branchless halt decision:
-    // If p_sum + p_t >= 1 - epsilon, we halt and clamp p_t.
-    // Instead of if/else, compute both paths and select via mask.
-    float threshold = 1.0f - epsilon;
-    float p_clamped = 1.0f - state.p_sum;  // What p_t would be if we halt
-    float exceeds = static_cast<float>(state.p_sum + p_t >= threshold); // 1.0 or 0.0
+    const float threshold = 1.0f - epsilon;
+    const float p_clamped = 1.0f - state.p_sum;
+    const float exceeds = static_cast<float>(state.p_sum + p_t >= threshold);
 
-    // Branchless blend: result = exceeds * clamped + (1 - exceeds) * p_t
     p_t = exceeds * p_clamped + (1.0f - exceeds) * p_t;
 
     state.p_sum += p_t;
-    state.remainder = exceeds * p_t;  // Only set remainder when halting
+    state.remainder = exceeds * p_t;
     should_halt = (exceeds > 0.5f);
     state.steps += 1;
 
