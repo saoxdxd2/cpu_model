@@ -4,12 +4,32 @@
 // core/linalg/mx_linear.hpp
 // ============================================================================
 
-#include "core/simd/memory.hpp"
 #include <cstdint>
 #include <cstddef>
 #include <bit>
+#include <memory>
+
+#ifdef _WIN32
+#include <malloc.h>
+#else
+#include <cstdlib>
+#endif
 
 namespace nca::linalg {
+
+struct AlignedDeleter {
+    void operator()(void* p) const noexcept {
+        if (!p) return;
+#ifdef _WIN32
+        _aligned_free(p);
+#else
+        free(p);
+#endif
+    }
+};
+
+template <typename T>
+using aligned_unique_ptr = std::unique_ptr<T, AlignedDeleter>;
 
 inline float decode_e8m0_scale(uint8_t e) {
     if (e == 0) return 0.0f;
@@ -34,10 +54,9 @@ struct MXINT8Tensor {
     int32_t* w_sums = nullptr;
     size_t num_blocks = 0;
 
-    // Ownership handles (Smart Pointers)
-    nca::simd::aligned_unique_ptr<int8_t[]>  data_ptr;
-    nca::simd::aligned_unique_ptr<uint8_t[]> scales_ptr;
-    nca::simd::aligned_unique_ptr<int32_t[]> w_sums_ptr;
+    aligned_unique_ptr<int8_t[]>  data_owner;
+    aligned_unique_ptr<uint8_t[]> scales_owner;
+    aligned_unique_ptr<int32_t[]> w_sums_owner;
 
     MXINT8Tensor() = default;
     explicit MXINT8Tensor(size_t blocks);
@@ -55,9 +74,8 @@ struct MXUINT8Tensor {
     uint8_t* scales = nullptr;
     size_t num_blocks = 0;
 
-    // Ownership handles
-    nca::simd::aligned_unique_ptr<uint8_t[]> data_ptr;
-    nca::simd::aligned_unique_ptr<uint8_t[]> scales_ptr;
+    aligned_unique_ptr<uint8_t[]> data_owner;
+    aligned_unique_ptr<uint8_t[]> scales_owner;
 
     MXUINT8Tensor() = default;
     explicit MXUINT8Tensor(size_t blocks);
@@ -82,6 +100,18 @@ void mx_dual_dot(
     const MXUINT8Tensor& x,
     float& out0,
     float& out1
+);
+
+void mx_quad_dot(
+    const MXINT8Tensor& w0,
+    const MXINT8Tensor& w1,
+    const MXINT8Tensor& w2,
+    const MXINT8Tensor& w3,
+    const MXUINT8Tensor& x,
+    float& out0,
+    float& out1,
+    float& out2,
+    float& out3
 );
 
 void mx_gemv(const MXINT8Tensor& W, const MXUINT8Tensor& x, float* y, size_t rows, size_t cols);

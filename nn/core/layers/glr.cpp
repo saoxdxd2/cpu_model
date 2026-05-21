@@ -46,18 +46,10 @@ void glr_step_avx512(float* __restrict h, const float* __restrict alpha, const f
         __m512 res2 = _mm512_fmadd_ps(_mm512_loadu_ps(p_a + 32), _mm512_loadu_ps(p_h + 32), v_bx2);
         __m512 res3 = _mm512_fmadd_ps(_mm512_loadu_ps(p_a + 48), _mm512_loadu_ps(p_h + 48), v_bx3);
 
-        // Store policy: constexpr if decides at compile time. Zero runtime branches.
-        if constexpr (Policy::use_nt_stores) {
-            _mm512_stream_ps(p_h,      res0);
-            _mm512_stream_ps(p_h + 16, res1);
-            _mm512_stream_ps(p_h + 32, res2);
-            _mm512_stream_ps(p_h + 48, res3);
-        } else {
-            _mm512_storeu_ps(p_h,      res0);
-            _mm512_storeu_ps(p_h + 16, res1);
-            _mm512_storeu_ps(p_h + 32, res2);
-            _mm512_storeu_ps(p_h + 48, res3);
-        }
+        _mm512_storeu_ps(p_h,      res0);
+        _mm512_storeu_ps(p_h + 16, res1);
+        _mm512_storeu_ps(p_h + 32, res2);
+        _mm512_storeu_ps(p_h + 48, res3);
     }
     if constexpr (Policy::use_nt_stores) _mm_sfence();
 

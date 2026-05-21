@@ -9,18 +9,15 @@
 
 namespace nca::layers {
 
-// Performs a single temporal step of a Selective SSM (Mamba-style)
-// h: Hidden state of shape [d_inner, d_state] (Continuous dynamics memory)
-// A: State transition matrix (diagonal), shape [d_inner, d_state]
-// B: Input projection, shape [d_state]
-// C: Output projection, shape [d_state]
-// x: Input vector, shape [d_inner]
-// y: Output vector, shape [d_inner]
 struct SSMConfig {
-    size_t d_inner = 8192;
+    size_t d_inner;
     size_t d_state = 16;
 };
 
+// Performs a single selective step of the SSM.
+// Equation:
+//   h_t = A*h_{t-1} + B*x_t
+//   y_t = C*h_t
 void ssm_step(
     float* __restrict h,
     const float* __restrict A,
@@ -31,7 +28,8 @@ void ssm_step(
     SSMConfig cfg
 );
 
-// Fused SSM + SiLU + Quantize:
+// Fused SSM + Quantization for multimodal pipeline efficiency.
+// This is the "Horizontal Fusion" tweak to keep intermediate state in L1.
 void mx_fused_ssm_silu_quantize_step(
     float* __restrict h,
     const float* __restrict A,

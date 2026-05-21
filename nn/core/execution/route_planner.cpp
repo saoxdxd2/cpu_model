@@ -21,6 +21,39 @@ RoutePlan::RoutePlan(size_t capacity) : max_capacity(capacity), num_active(0) {
     active_indices = active_indices_ptr.get();
 }
 
+void shuffle_active_tokens(
+    const float* __restrict src,
+    float* __restrict dst,
+    const RoutePlan& plan,
+    size_t d_model
+) {
+    const auto count = plan.num_active;
+    const auto* indices = plan.active_indices;
+
+    for (size_t i = 0; i < count; ++i) [[likely]] {
+        const auto idx = indices[i];
+        const float* p_src = src + idx * d_model;
+        float* p_dst = dst + i * d_model;
+
+        // ── SIMD-Accelerated Contiguous Copy ─────────────────────────────────
+        // We use AVX-512 to copy entire tokens into the contiguous buffer.
+        size_t d = 0;
+#if defined(__AVX512F__) || defined(_MSC_VER)
+        for (; d + 15 < d_model; d += 16) {
+            _mm512_storeu_ps(&p_dst[d], _mm512_loadu_ps(&p_src[d]));
+        }
+#endif
+        // Scalar tail (unrolled 4x)
+        for (; d + 3 < d_model; d += 4) {
+            p_dst[d] = p_src[d];
+            p_dst[d+1] = p_src[d+1];
+            p_dst[d+2] = p_src[d+2];
+            p_dst[d+3] = p_src[d+3];
+        }
+        for (; d < d_model; ++d) p_dst[d] = p_src[d];
+    }
+}
+
 size_t plan_route_threshold(
     const float* __restrict metrics,
     size_t total_tokens,

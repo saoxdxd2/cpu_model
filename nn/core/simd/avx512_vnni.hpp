@@ -20,6 +20,19 @@ void dual_vnni_dot(
     float& out1
 );
 
+// Quad VNNI: Computes four dot products simultaneously, sharing 'x' 4x.
+void quad_vnni_dot(
+    const nca::linalg::MXINT8Tensor* __restrict w0,
+    const nca::linalg::MXINT8Tensor* __restrict w1,
+    const nca::linalg::MXINT8Tensor* __restrict w2,
+    const nca::linalg::MXINT8Tensor* __restrict w3,
+    const nca::linalg::MXUINT8Tensor* __restrict x,
+    float& out0,
+    float& out1,
+    float& out2,
+    float& out3
+);
+
 void mx_quantize_x(const float* __restrict in, nca::linalg::MXUINT8Tensor* __restrict out);
 void mx_fused_silu_quantize_x(const float* __restrict in, nca::linalg::MXUINT8Tensor* __restrict out);
 

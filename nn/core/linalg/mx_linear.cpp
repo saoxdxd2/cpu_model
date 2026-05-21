@@ -7,6 +7,7 @@
 #include "core/simd/dispatch.hpp"
 #include "core/simd/avx512_vnni.hpp"
 #include "core/log.hpp"
+#include <malloc.h>
 #include <cmath>
 #include <algorithm>
 
@@ -15,54 +16,63 @@ namespace nca::linalg {
 // ── RAII Tensor Lifecycle ────────────────────────────────────────────────────
 
 MXINT8Tensor::MXINT8Tensor(size_t blocks) : num_blocks(blocks) {
-    data_ptr   = nca::simd::make_aligned_unique<int8_t>(blocks * 32);
-    scales_ptr = nca::simd::make_aligned_unique<uint8_t>(blocks);
-    w_sums_ptr = nca::simd::make_aligned_unique<int32_t>(blocks);
+    void* d = _aligned_malloc(blocks * 32 * sizeof(int8_t),  64);
+    void* s = _aligned_malloc(blocks * sizeof(uint8_t),      64);
+    void* w = _aligned_malloc(blocks * sizeof(int32_t),      64);
+    if (!d || !s || !w) throw std::bad_alloc();
     
-    data   = data_ptr.get();
-    scales = scales_ptr.get();
-    w_sums = w_sums_ptr.get();
+    data_owner.reset((int8_t*)d);
+    scales_owner.reset((uint8_t*)s);
+    w_sums_owner.reset((int32_t*)w);
+    
+    data = data_owner.get();
+    scales = scales_owner.get();
+    w_sums = w_sums_owner.get();
 }
 
 MXINT8Tensor::MXINT8Tensor(MXINT8Tensor&& o) noexcept
     : data(o.data), scales(o.scales), w_sums(o.w_sums), num_blocks(o.num_blocks),
-      data_ptr(std::move(o.data_ptr)),
-      scales_ptr(std::move(o.scales_ptr)),
-      w_sums_ptr(std::move(o.w_sums_ptr)) {
+      data_owner(std::move(o.data_owner)),
+      scales_owner(std::move(o.scales_owner)),
+      w_sums_owner(std::move(o.w_sums_owner)) {
     o.data = nullptr; o.scales = nullptr; o.w_sums = nullptr; o.num_blocks = 0;
 }
 
 MXINT8Tensor& MXINT8Tensor::operator=(MXINT8Tensor&& o) noexcept {
     if (this != &o) {
         data = o.data; scales = o.scales; w_sums = o.w_sums; num_blocks = o.num_blocks;
-        data_ptr = std::move(o.data_ptr);
-        scales_ptr = std::move(o.scales_ptr);
-        w_sums_ptr = std::move(o.w_sums_ptr);
+        data_owner = std::move(o.data_owner);
+        scales_owner = std::move(o.scales_owner);
+        w_sums_owner = std::move(o.w_sums_owner);
         o.data = nullptr; o.scales = nullptr; o.w_sums = nullptr; o.num_blocks = 0;
     }
     return *this;
 }
 
 MXUINT8Tensor::MXUINT8Tensor(size_t blocks) : num_blocks(blocks) {
-    data_ptr   = nca::simd::make_aligned_unique<uint8_t>(blocks * 32);
-    scales_ptr = nca::simd::make_aligned_unique<uint8_t>(blocks);
+    void* d = _aligned_malloc(blocks * 32 * sizeof(uint8_t), 64);
+    void* s = _aligned_malloc(blocks * sizeof(uint8_t),      64);
+    if (!d || !s) throw std::bad_alloc();
     
-    data   = data_ptr.get();
-    scales = scales_ptr.get();
+    data_owner.reset((uint8_t*)d);
+    scales_owner.reset((uint8_t*)s);
+    
+    data = data_owner.get();
+    scales = scales_owner.get();
 }
 
 MXUINT8Tensor::MXUINT8Tensor(MXUINT8Tensor&& o) noexcept
     : data(o.data), scales(o.scales), num_blocks(o.num_blocks),
-      data_ptr(std::move(o.data_ptr)),
-      scales_ptr(std::move(o.scales_ptr)) {
+      data_owner(std::move(o.data_owner)),
+      scales_owner(std::move(o.scales_owner)) {
     o.data = nullptr; o.scales = nullptr; o.num_blocks = 0;
 }
 
 MXUINT8Tensor& MXUINT8Tensor::operator=(MXUINT8Tensor&& o) noexcept {
     if (this != &o) {
         data = o.data; scales = o.scales; num_blocks = o.num_blocks;
-        data_ptr = std::move(o.data_ptr);
-        scales_ptr = std::move(o.scales_ptr);
+        data_owner = std::move(o.data_owner);
+        scales_owner = std::move(o.scales_owner);
         o.data = nullptr; o.scales = nullptr; o.num_blocks = 0;
     }
     return *this;
@@ -73,9 +83,8 @@ MXUINT8Tensor& MXUINT8Tensor::operator=(MXUINT8Tensor&& o) noexcept {
 void mx_quantize_w(const float* __restrict in, MXINT8Tensor& out) {
     for (size_t b = 0; b < out.num_blocks; ++b) {
         float max_abs = 0;
-        for (int i = 0; i < 32; i += 4) {
-            max_abs = std::max({max_abs, std::abs(in[b * 32 + i]), std::abs(in[b * 32 + i + 1]), std::abs(in[b * 32 + i + 2]), std::abs(in[b * 32 + i + 3])});
-        }
+        for (int i = 0; i < 32; ++i)
+            max_abs = std::max(max_abs, std::abs(in[b * 32 + i]));
 
         out.scales[b] = extract_e8m0(max_abs);
         auto scale = decode_e8m0_scale(out.scales[b]);
@@ -92,14 +101,11 @@ void mx_quantize_w(const float* __restrict in, MXINT8Tensor& out) {
     }
 }
 
-// ── Activation Quantization ─────────────────────────────────────────────────
-
 void mx_quantize_x_scalar(const float* __restrict in, MXUINT8Tensor* __restrict out) {
     for (size_t b = 0; b < out->num_blocks; ++b) {
         float max_abs = 0;
-        for (int i = 0; i < 32; i += 4) {
-            max_abs = std::max({max_abs, std::abs(in[b * 32 + i]), std::abs(in[b * 32 + i + 1]), std::abs(in[b * 32 + i + 2]), std::abs(in[b * 32 + i + 3])});
-        }
+        for (int i = 0; i < 32; ++i)
+            max_abs = std::max(max_abs, std::abs(in[b * 32 + i]));
 
         out->scales[b] = extract_e8m0(max_abs);
         auto scale = decode_e8m0_scale(out->scales[b]);
@@ -119,8 +125,6 @@ void mx_quantize_x(const float* __restrict in, MXUINT8Tensor& out) {
     }
     mx_quantize_x_scalar(in, &out);
 }
-
-// ── Fused SiLU + Quantize ───────────────────────────────────────────────────
 
 void mx_fused_silu_quantize_x_scalar(const float* __restrict in, MXUINT8Tensor* __restrict out) {
     for (size_t b = 0; b < out->num_blocks; ++b) {
@@ -152,22 +156,15 @@ void mx_fused_silu_quantize_x(const float* __restrict in, MXUINT8Tensor& out) {
     mx_fused_silu_quantize_x_scalar(in, &out);
 }
 
-// ── Dot Product ─────────────────────────────────────────────────────────────
-
 static float mx_dot_scalar(const MXINT8Tensor& w, const MXUINT8Tensor& x) {
     float sum = 0.0f;
     auto num_blocks = std::min(w.num_blocks, x.num_blocks);
     for (size_t b = 0; b < num_blocks; ++b) {
         float block_sum = 0.0f;
-        for (int i = 0; i < 32; i += 8) {
-            block_sum += static_cast<float>((static_cast<int>(x.data[b * 32 + i]) - 128) * static_cast<int>(w.data[b * 32 + i]));
-            block_sum += static_cast<float>((static_cast<int>(x.data[b * 32 + i + 1]) - 128) * static_cast<int>(w.data[b * 32 + i + 1]));
-            block_sum += static_cast<float>((static_cast<int>(x.data[b * 32 + i + 2]) - 128) * static_cast<int>(w.data[b * 32 + i + 2]));
-            block_sum += static_cast<float>((static_cast<int>(x.data[b * 32 + i + 3]) - 128) * static_cast<int>(w.data[b * 32 + i + 3]));
-            block_sum += static_cast<float>((static_cast<int>(x.data[b * 32 + i + 4]) - 128) * static_cast<int>(w.data[b * 32 + i + 4]));
-            block_sum += static_cast<float>((static_cast<int>(x.data[b * 32 + i + 5]) - 128) * static_cast<int>(w.data[b * 32 + i + 5]));
-            block_sum += static_cast<float>((static_cast<int>(x.data[b * 32 + i + 6]) - 128) * static_cast<int>(w.data[b * 32 + i + 6]));
-            block_sum += static_cast<float>((static_cast<int>(x.data[b * 32 + i + 7]) - 128) * static_cast<int>(w.data[b * 32 + i + 7]));
+        for (int i = 0; i < 32; ++i) {
+            int val_x = static_cast<int>(x.data[b * 32 + i]) - 128;
+            int val_w = static_cast<int>(w.data[b * 32 + i]);
+            block_sum += static_cast<float>(val_x * val_w);
         }
         sum += block_sum * decode_e8m0_scale(w.scales[b]) * decode_e8m0_scale(x.scales[b]);
     }
@@ -196,40 +193,82 @@ void mx_dual_dot(
     out1 = mx_dot_scalar(w1, x);
 }
 
-// ── GEMV: Zero-Cost View + L1 Tiling ────────────────────────────────────────
+void mx_quad_dot(
+    const MXINT8Tensor& w0,
+    const MXINT8Tensor& w1,
+    const MXINT8Tensor& w2,
+    const MXINT8Tensor& w3,
+    const MXUINT8Tensor& x,
+    float& out0,
+    float& out1,
+    float& out2,
+    float& out3
+) {
+    if (simd::best_backend() == simd::Backend::AVX512) [[likely]] {
+        simd::avx512::quad_vnni_dot(&w0, &w1, &w2, &w3, &x, out0, out1, out2, out3);
+        return;
+    }
+    out0 = mx_dot_scalar(w0, x);
+    out1 = mx_dot_scalar(w1, x);
+    out2 = mx_dot_scalar(w2, x);
+    out3 = mx_dot_scalar(w3, x);
+}
 
 void mx_gemv(const MXINT8Tensor& W, const MXUINT8Tensor& x, float* y, size_t rows, size_t cols) {
-    const auto blocks_per_row = cols / 32;
+    const size_t blocks_per_row = cols / 32;
 
     if (simd::best_backend() == simd::Backend::AVX512) [[likely]] {
-        constexpr size_t ROW_TILE = 32;
-        for (size_t rt = 0; rt < rows; rt += ROW_TILE) {
-            auto r_end = std::min(rt + ROW_TILE, rows);
-            for (size_t r = rt; r < r_end; ++r) {
-                if (r + 1 < rows) {
-                    _mm_prefetch((const char*)(W.data + (r + 1) * cols), _MM_HINT_T0);
-                    _mm_prefetch((const char*)(W.scales + (r + 1) * blocks_per_row), _MM_HINT_T0);
-                }
+        // ── QUAD-ROW UNROLLING (Compute Tweak) ───────────────────────────────
+        // We process 4 rows at once to reuse 'x' blocks 4x in L1 registers.
+        size_t r = 0;
+        for (; r + 3 < rows; r += 4) [[likely]] {
+            MXINT8Tensor v0, v1, v2, v3;
+            auto prep = [&](MXINT8Tensor& v, size_t ri) {
+                v.data = const_cast<int8_t*>(W.data + ri * cols);
+                v.scales = const_cast<uint8_t*>(W.scales + ri * blocks_per_row);
+                v.w_sums = const_cast<int32_t*>(W.w_sums + ri * blocks_per_row);
+                v.num_blocks = blocks_per_row;
+            };
+            prep(v0, r); prep(v1, r + 1); prep(v2, r + 2); prep(v3, r + 3);
+            
+            mx_quad_dot(v0, v1, v2, v3, x, y[r], y[r+1], y[r+2], y[r+3]);
 
-                MXINT8Tensor view;
-                view.data    = const_cast<int8_t*>(W.data + r * cols);
-                view.scales  = const_cast<uint8_t*>(W.scales + r * blocks_per_row);
-                view.w_sums  = const_cast<int32_t*>(W.w_sums + r * blocks_per_row);
-                view.num_blocks = blocks_per_row;
-
-                y[r] = simd::avx512::vnni_dot(&view, &x);
-
-                view.data = nullptr; view.scales = nullptr; view.w_sums = nullptr;
-            }
+            v0.data = v1.data = v2.data = v3.data = nullptr;
+        }
+        // Dual tail
+        for (; r + 1 < rows; r += 2) {
+            MXINT8Tensor v0, v1;
+            auto prep = [&](MXINT8Tensor& v, size_t ri) {
+                v.data = const_cast<int8_t*>(W.data + ri * cols);
+                v.scales = const_cast<uint8_t*>(W.scales + ri * blocks_per_row);
+                v.w_sums = const_cast<int32_t*>(W.w_sums + ri * blocks_per_row);
+                v.num_blocks = blocks_per_row;
+            };
+            prep(v0, r); prep(v1, r + 1);
+            mx_dual_dot(v0, v1, x, y[r], y[r+1]);
+            v0.data = v1.data = nullptr;
+        }
+        // Single tail
+        for (; r < rows; ++r) {
+            MXINT8Tensor v;
+            v.data = const_cast<int8_t*>(W.data + r * cols);
+            v.scales = const_cast<uint8_t*>(W.scales + r * blocks_per_row);
+            v.w_sums = const_cast<int32_t*>(W.w_sums + r * blocks_per_row);
+            v.num_blocks = blocks_per_row;
+            y[r] = mx_dot(v, x);
+            v.data = nullptr;
         }
     } else {
+
         for (size_t r = 0; r < rows; ++r) {
             float sum = 0.0f;
             for (size_t b = 0; b < blocks_per_row; ++b) {
                 auto wb = r * blocks_per_row + b;
                 float block_sum = 0.0f;
                 for (int i = 0; i < 32; ++i) {
-                    block_sum += static_cast<float>((static_cast<int>(x.data[b * 32 + i]) - 128) * static_cast<int>(W.data[wb * 32 + i]));
+                    int val_x = static_cast<int>(x.data[b * 32 + i]) - 128;
+                    int val_w = static_cast<int>(W.data[wb * 32 + i]);
+                    block_sum += static_cast<float>(val_x * val_w);
                 }
                 sum += block_sum * decode_e8m0_scale(W.scales[wb]) * decode_e8m0_scale(x.scales[b]);
             }

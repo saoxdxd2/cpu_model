@@ -48,6 +48,16 @@ struct RoutePlan {
     RoutePlan& operator=(RoutePlan&& o) noexcept = default;
 };
 
+// ── DATA LOCALITY OPTIMIZATION (The Google/Big-Data Shuffle) ─────────────────
+// Physically shuffles active tokens from 'src' into a contiguous 'dst' buffer.
+// This transforms GATHER operations (slow) into SEQUENTIAL SCANS (fast).
+void shuffle_active_tokens(
+    const float* __restrict src,
+    float* __restrict dst,
+    const RoutePlan& plan,
+    size_t d_model
+);
+
 size_t plan_route_threshold(
     const float* __restrict metrics,
     size_t total_tokens,
