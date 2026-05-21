@@ -18,6 +18,11 @@ add_library(nca_core STATIC
     vision/scanner.cpp
     vision/spectral_pruner.cpp
 
+    # ── Spectral Logic (v7.0) ──
+    spectral/fwht.cpp
+    spectral/kronecker_rls.cpp
+    spectral/spectral_logic.cpp
+
     # ── Execution ──
     execution/route_planner.cpp
     execution/fused_pipeline.cpp

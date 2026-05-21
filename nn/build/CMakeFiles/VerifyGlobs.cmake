@@ -26,6 +26,9 @@ set(OLD_GLOB
   "C:/Users/sao/Documents/cpu_model/nn/core/simd/cache_policy.hpp"
   "C:/Users/sao/Documents/cpu_model/nn/core/simd/dispatch.hpp"
   "C:/Users/sao/Documents/cpu_model/nn/core/simd/memory.hpp"
+  "C:/Users/sao/Documents/cpu_model/nn/core/spectral/fwht.hpp"
+  "C:/Users/sao/Documents/cpu_model/nn/core/spectral/kronecker_rls.hpp"
+  "C:/Users/sao/Documents/cpu_model/nn/core/spectral/spectral_logic.hpp"
   "C:/Users/sao/Documents/cpu_model/nn/core/vision/scanner.hpp"
   "C:/Users/sao/Documents/cpu_model/nn/core/vision/spectral_pruner.hpp"
   )

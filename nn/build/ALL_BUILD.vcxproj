@@ -190,6 +190,10 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
       <Project>{6A62A40A-3BFE-3053-B040-A9ADF971EECC}</Project>
       <Name>test_robustness</Name>
     </ProjectReference>
+    <ProjectReference Include="C:\Users\sao\Documents\cpu_model\nn\build\tests\test_spectral.vcxproj">
+      <Project>{F262A962-C8BD-399C-88E6-D21F0378FC85}</Project>
+      <Name>test_spectral</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

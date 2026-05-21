@@ -40,8 +40,6 @@ struct MXTensorBase {
             data = data_owner.get(); scales = scales_owner.get();
         }
     }
-    MXTensorBase(MXTensorBase&&) noexcept = default;
-    MXTensorBase& operator=(MXTensorBase&&) noexcept = default;
 };
 
 struct MXINT8Tensor : public MXTensorBase<int8_t> {
@@ -55,15 +53,11 @@ struct MXINT8Tensor : public MXTensorBase<int8_t> {
             w_sums = w_sums_owner.get();
         }
     }
-    MXINT8Tensor(MXINT8Tensor&&) noexcept = default;
-    MXINT8Tensor& operator=(MXINT8Tensor&&) noexcept = default;
 };
 
 struct MXUINT8Tensor : public MXTensorBase<uint8_t> {
     MXUINT8Tensor() = default;
     explicit MXUINT8Tensor(size_t b) : MXTensorBase<uint8_t>(b, 32) {}
-    MXUINT8Tensor(MXUINT8Tensor&&) noexcept = default;
-    MXUINT8Tensor& operator=(MXUINT8Tensor&&) noexcept = default;
 };
 
 // ── Kernel API ───────────────────────────────────────────────────────────────
@@ -76,9 +70,9 @@ void  mx_dual_dot(const MXINT8Tensor& w0, const MXINT8Tensor& w1, const MXUINT8T
 void  mx_quad_dot(const MXINT8Tensor& w0, const MXINT8Tensor& w1, const MXINT8Tensor& w2, const MXINT8Tensor& w3, const MXUINT8Tensor& x, float& o0, float& o1, float& o2, float& o3);
 
 void mx_rank16_dot(
-    const MXINT8Tensor* __restrict weights, // Array of 16 tensor views
+    const MXINT8Tensor* __restrict weights, 
     const MXUINT8Tensor& x,
-    float* __restrict outputs               // Array of 16 floats
+    float* __restrict outputs               
 );
 
 void  mx_gemv(const MXINT8Tensor& W, const MXUINT8Tensor& x, float* y, size_t rows, size_t cols);

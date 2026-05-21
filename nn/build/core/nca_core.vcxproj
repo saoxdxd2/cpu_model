@@ -337,6 +337,9 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\layers\halting.cpp" />
     <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\vision\scanner.cpp" />
     <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\vision\spectral_pruner.cpp" />
+    <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\spectral\fwht.cpp" />
+    <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\spectral\kronecker_rls.cpp" />
+    <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\spectral\spectral_logic.cpp" />
     <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\execution\route_planner.cpp" />
     <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\execution\fused_pipeline.cpp" />
     <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\execution\latent_adapter.cpp" />

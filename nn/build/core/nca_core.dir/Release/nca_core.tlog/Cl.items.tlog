@@ -7,6 +7,9 @@ C:\Users\sao\Documents\cpu_model\nn\core\layers\mlp.cpp;C:\Users\sao\Documents\c
 C:\Users\sao\Documents\cpu_model\nn\core\layers\halting.cpp;C:\Users\sao\Documents\cpu_model\nn\build\core\nca_core.dir\Release\halting.obj
 C:\Users\sao\Documents\cpu_model\nn\core\vision\scanner.cpp;C:\Users\sao\Documents\cpu_model\nn\build\core\nca_core.dir\Release\scanner.obj
 C:\Users\sao\Documents\cpu_model\nn\core\vision\spectral_pruner.cpp;C:\Users\sao\Documents\cpu_model\nn\build\core\nca_core.dir\Release\spectral_pruner.obj
+C:\Users\sao\Documents\cpu_model\nn\core\spectral\fwht.cpp;C:\Users\sao\Documents\cpu_model\nn\build\core\nca_core.dir\Release\fwht.obj
+C:\Users\sao\Documents\cpu_model\nn\core\spectral\kronecker_rls.cpp;C:\Users\sao\Documents\cpu_model\nn\build\core\nca_core.dir\Release\kronecker_rls.obj
+C:\Users\sao\Documents\cpu_model\nn\core\spectral\spectral_logic.cpp;C:\Users\sao\Documents\cpu_model\nn\build\core\nca_core.dir\Release\spectral_logic.obj
 C:\Users\sao\Documents\cpu_model\nn\core\execution\route_planner.cpp;C:\Users\sao\Documents\cpu_model\nn\build\core\nca_core.dir\Release\route_planner.obj
 C:\Users\sao\Documents\cpu_model\nn\core\execution\fused_pipeline.cpp;C:\Users\sao\Documents\cpu_model\nn\build\core\nca_core.dir\Release\fused_pipeline.obj
 C:\Users\sao\Documents\cpu_model\nn\core\execution\latent_adapter.cpp;C:\Users\sao\Documents\cpu_model\nn\build\core\nca_core.dir\Release\latent_adapter.obj

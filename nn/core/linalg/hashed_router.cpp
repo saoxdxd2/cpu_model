@@ -40,26 +40,31 @@ void HashedRouter::route(const float* x, std::vector<size_t>& out_indices) const
     MXUINT8Tensor x_q(D / 32);
     nca::linalg::mx_quantize_x(x, x_q);
 
-    alignas(64) float scores[4096]; 
-    const size_t scan_limit = std::min(N, (size_t)4096);
+    // ── DYNAMIC BUFFERING (Target 1 - P2 Fix) ───────────────────────────────
+    // Replace stack-fixed scores[4096] with dynamic aligned buffer.
+    auto scores = nca::simd::make_aligned_unique<float[]>(N);
 
     // ── ROBUST RANK-16 SCAN ─────────────────────────────────────────────────
     size_t i = 0;
-    for (; i + 15 < scan_limit; i += 16) {
+    for (; i + 15 < N; i += 16) {
         nca::simd::avx512::rank16_vnni_dot(&projections_[i], &x_q, &scores[i]);
     }
-    // Handle remainders (Scalar fallback for edge cases)
-    for (; i < scan_limit; ++i) {
+    for (; i < N; ++i) {
         scores[i] = nca::linalg::mx_dot(projections_[i], x_q);
     }
 
     // ── COMPLEXITY DESTRUCTION: O(N) Top-K Selection ────────────────────────
-    std::vector<std::pair<float, size_t>> ranked(scan_limit);
-    for(size_t k=0; k<scan_limit; ++k) ranked[k] = {scores[k], k};
+    std::vector<std::pair<float, size_t>> ranked(N);
+    for(size_t k=0; k<N; ++k) ranked[k] = {scores[k], k};
 
-    const size_t k = std::min(cfg_.top_k, scan_limit);
-    std::nth_element(ranked.begin(), ranked.begin() + k, ranked.end(),
-        [](auto& a, auto& b) { return a.first > b.first; });
+    const size_t k = std::min(cfg_.top_k, N);
+
+    // ── ITERATOR SAFETY (Target 1 - P3 Fix) ─────────────────────────────────
+    // Guard against pivot iterator being exactly end().
+    if (k < N) {
+        std::nth_element(ranked.begin(), ranked.begin() + k, ranked.end(),
+            [](auto& a, auto& b) { return a.first > b.first; });
+    }
 
     out_indices.clear();
     for(size_t j=0; j < k; ++j) {

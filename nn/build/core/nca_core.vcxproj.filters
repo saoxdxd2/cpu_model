@@ -28,6 +28,15 @@
     <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\vision\spectral_pruner.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\spectral\fwht.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\spectral\kronecker_rls.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\spectral\spectral_logic.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\execution\route_planner.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>

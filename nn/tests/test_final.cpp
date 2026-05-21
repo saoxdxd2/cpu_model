@@ -27,43 +27,58 @@ int main() {
     std::cout << "|  NCA -- Final Integrated Verification    |\n";
     std::cout << "+------------------------------------------+\n\n";
 
-    // Initialize engine (uses Fixed Seed Contract)
-    nca::execution::MultimodalEngine engine;
-
     const size_t D = nca::config::D_MODEL;
     alignas(64) float text_in[2048];
     alignas(64) float img_in[16 * 16 * 128];
     alignas(64) float out[2048];
 
-    // 1. Initialize with distinct stable signal
+    // Initialize inputs
     for(int i=0; i<D; ++i) text_in[i] = (float)i / D;
     for(int i=0; i<16*16*128; ++i) img_in[i] = (float)(i % 100) / 100.0f;
 
-    std::cout << "  [RUN ] Integrated Multimodal Step... " << std::flush;
-    auto t0 = std::chrono::high_resolution_clock::now();
-    engine.step(text_in, img_in, out);
-    auto t1 = std::chrono::high_resolution_clock::now();
-    double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
-    std::cout << "OK (" << ms << " ms)\n";
-
-    // 2. GOLDEN REFERENCE VALIDATION
-    uint64_t output_hash = fnv1a_hash(out, D);
-    
-    // Stable Golden Hash for v6.1 (Ice Lake / MSVC)
-    const uint64_t GOLDEN_HASH = 0xcd9881817ff8b5ULL; 
-
-    std::cout << "  [CHECK] Golden Parameter Contract... ";
-    
-    if (output_hash == GOLDEN_HASH) {
-        std::cout << "OK (Hash: 0x" << std::hex << output_hash << std::dec << ")\n";
-        std::cout << "  [PASS] Neural Circuit Synthesis validated via Deterministic Contract.\n";
-    } else {
-        std::cout << "FAIL\n";
-        std::cout << "  [ERR ] Hash mismatch (Found 0x" << std::hex << output_hash << "). Logic changed.\n";
-        return 1;
+    // ── 1. VERIFY HASHED ROUTER (DEFAULT) ──────────────────────────────────
+    {
+        std::cout << "  [RUN ] Backend: HashedRouter (Default)... " << std::flush;
+        nca::execution::MultimodalEngine engine;
+        auto t0 = std::chrono::high_resolution_clock::now();
+        engine.step(text_in, img_in, out);
+        auto t1 = std::chrono::high_resolution_clock::now();
+        double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
+        uint64_t h = fnv1a_hash(out, D);
+        
+        const uint64_t GOLDEN_H = 0x40612f1ed3b468ddULL;
+        
+        if (h == GOLDEN_H) {
+            std::cout << "OK (Hash: 0x" << std::hex << h << std::dec << ", " << ms << " ms)\n";
+        } else {
+            std::cout << "FAIL (Found: 0x" << std::hex << h << ")\n";
+            return 1;
+        }
     }
 
-    std::cout << "  [INFO] Effective Performance: " << (1000.0 / ms) << " tokens/s\n\n";
+    // ── 2. VERIFY SPECTRAL RLS (V7.0) ───────────────────────────────────────
+    {
+        std::cout << "  [RUN ] Backend: SpectralRLS (Opt-in)... " << std::flush;
+        nca::config::EngineConfig cfg;
+        cfg.logic_backend = nca::config::LogicBackend::SpectralRLS;
+        nca::execution::MultimodalEngine engine(cfg);
+        
+        auto t0 = std::chrono::high_resolution_clock::now();
+        engine.step(text_in, img_in, out);
+        auto t1 = std::chrono::high_resolution_clock::now();
+        double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
+        uint64_t h = fnv1a_hash(out, D);
+        
+        const uint64_t GOLDEN_S = 0xad2ddafcd00a0dfdULL; 
 
+        if (h == GOLDEN_S) {
+             std::cout << "OK (Hash: 0x" << std::hex << h << std::dec << ", " << ms << " ms)\n";
+        } else {
+             std::cout << "FAIL (Found: 0x" << std::hex << h << ")\n";
+             return 1; 
+        }
+    }
+
+    std::cout << "\n  [PASS] All Logic Backends Verified Deterministically.\n";
     return 0;
 }
