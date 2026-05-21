@@ -84,6 +84,7 @@ static std::optional<Backend> g_override_backend;
 
 void set_override_backend(Backend b) { g_override_backend = b; }
 void clear_override_backend() { g_override_backend.reset(); }
+bool is_overridden() noexcept { return g_override_backend.has_value(); }
 
 Backend best_backend() {
     if (g_override_backend) return *g_override_backend;

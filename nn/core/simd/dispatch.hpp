@@ -27,6 +27,7 @@ CPUInfo detect();
 Backend best_backend();
 void set_override_backend(Backend b);
 void clear_override_backend();
+bool is_overridden() noexcept;
 const char* backend_name(Backend b) noexcept;
 
 // ── OPTIMIZED DYNAMIC DISPATCHER ─────────────────────────────────────────────
@@ -38,17 +39,24 @@ public:
 
     template <typename... Args>
     auto operator()(Args&&... args) const {
+        // If overridden (e.g. during AMI testing), always re-select uncached.
+        if (is_overridden()) [[unlikely]] return select_uncached()(std::forward<Args>(args)...);
+
         auto* f = bound.load(std::memory_order_relaxed);
         if (f) [[likely]] return f(std::forward<Args>(args)...);
         return select()(std::forward<Args>(args)...);
     }
 
 private:
-    FuncPtr select() const {
+    FuncPtr select_uncached() const {
         auto b = best_backend();
-        FuncPtr f = scalar;
-        if (b == Backend::AVX512) f = avx512;
-        else if (b == Backend::AVX2) f = avx2;
+        if (b == Backend::AVX512) return avx512;
+        if (b == Backend::AVX2) return avx2;
+        return scalar;
+    }
+
+    FuncPtr select() const {
+        auto f = select_uncached();
         bound.store(f, std::memory_order_relaxed);
         return f;
     }
