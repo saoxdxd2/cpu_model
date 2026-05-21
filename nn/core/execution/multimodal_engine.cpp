@@ -1,5 +1,5 @@
 // ============================================================================
-// NCA — Multimodal Engine Implementation (Randomized NCS v6.0)
+// NCA — Multimodal Engine Implementation (Refined Parameter Contract)
 // core/execution/multimodal_engine.cpp
 // ============================================================================
 
@@ -26,31 +26,34 @@ MultimodalEngine::MultimodalEngine() {
     const size_t D = nca::config::D_MODEL;
     const size_t di_vision = 16 * 16 * 128; 
     const size_t d_state = 16;
-    const size_t n_experts = 256; // Massive parameter pool (256 * 16 rows)
+    const size_t n_experts = 256; 
 
-    // 1. INITIALIZE HASHED ROUTER
-    nca::linalg::HashedRouter::Config router_cfg = { D, n_experts, 4, 16 };
-    router_ = std::make_unique<nca::linalg::HashedRouter>(router_cfg);
-
-    // 2. ALLOCATE AND INITIALIZE WEIGHT ANCHORS
-    W_vision_A_ = nca::simd::make_aligned_unique<float[]>(di_vision * d_state);
-    W_vision_B_ = nca::simd::make_aligned_unique<float[]>(d_state);
-    W_vision_C_ = nca::simd::make_aligned_unique<float[]>(d_state);
-    W_glr_alpha_ = nca::simd::make_aligned_unique<float[]>(D);
-    W_glr_beta_ = nca::simd::make_aligned_unique<float[]>(D);
-    W_halt_ = nca::linalg::MXINT8Tensor(D / 32);
-
-    std::mt19937 gen(42);
+    // ── STABLE PARAMETER CONTRACT: FIXED SEED INITIALIZATION ───────────────
+    // This ensures that the model is deterministic and verifiable until
+    // we implement the real .safetensors loader in Phase 17.
+    std::mt19937 gen(42); 
     std::uniform_real_distribution<float> dist(-0.01f, 0.01f);
     auto init_f = [&](float* p, size_t n) { for(size_t i=0; i<n; ++i) p[i] = dist(gen); };
 
+    // 1. Initialize Vision Anchors
+    W_vision_A_ = nca::simd::make_aligned_unique<float[]>(di_vision * d_state);
+    W_vision_B_ = nca::simd::make_aligned_unique<float[]>(d_state);
+    W_vision_C_ = nca::simd::make_aligned_unique<float[]>(d_state);
     init_f(W_vision_A_.get(), di_vision * d_state);
     init_f(W_vision_B_.get(), d_state);
     init_f(W_vision_C_.get(), d_state);
+
+    // 2. Initialize Logic Anchors (Backbone)
+    W_glr_alpha_ = nca::simd::make_aligned_unique<float[]>(D);
+    W_glr_beta_ = nca::simd::make_aligned_unique<float[]>(D);
     init_f(W_glr_alpha_.get(), D);
     init_f(W_glr_beta_.get(), D);
 
-    // Initialize Expert Pool (Associative Memory)
+    // 3. Initialize Hashed Router (Saturated VNNI)
+    nca::linalg::HashedRouter::Config router_cfg = { D, n_experts, 4, 16 };
+    router_ = std::make_unique<nca::linalg::HashedRouter>(router_cfg);
+
+    // 4. Initialize Expert Pool (Associative Memory)
     W_mlp_gate_pool_.reserve(n_experts * 16);
     W_mlp_up_pool_.reserve(n_experts * 16);
     auto temp = nca::simd::make_aligned_unique<float[]>(D);
@@ -60,9 +63,12 @@ MultimodalEngine::MultimodalEngine() {
         init_f(temp.get(), D); nca::linalg::mx_quantize_w(temp.get(), W_mlp_gate_pool_[i]);
         init_f(temp.get(), D); nca::linalg::mx_quantize_w(temp.get(), W_mlp_up_pool_[i]);
     }
+
+    // 5. Initialize Halting Anchor
+    W_halt_ = nca::linalg::MXINT8Tensor(D / 32);
     init_f(temp.get(), D); nca::linalg::mx_quantize_w(temp.get(), W_halt_);
 
-    // 3. ALLOCATE STATE BUFFERS
+    // ── ALLOCATE L1-HOT STATE BUFFERS ───────────────────────────────────────
     state_ = nca::simd::make_aligned_unique<float[]>(D);
     vision_latent_ = nca::simd::make_aligned_unique<float[]>(D);
     h_glr_ = nca::simd::make_aligned_unique<float[]>(D);
@@ -74,7 +80,6 @@ void MultimodalEngine::step(const float* text_in, const float* image_in, float* 
     const size_t D = nca::config::D_MODEL;
     if (text_in) std::copy(text_in, text_in + D, state_.get());
 
-    // ── VISION PATHWAY: SPECTRAL GATING ─────────────────────────────────────
     if (image_in) {
         nca::vision::ScannerConfig scan_cfg; 
         size_t n_patches = scan_cfg.H * scan_cfg.W;
@@ -98,7 +103,6 @@ void MultimodalEngine::step(const float* text_in, const float* image_in, float* 
         for(size_t i=0; i<D; ++i) state_[i] += adapter_out[i];
     }
 
-    // ── LOGIC PATHWAY: NEURAL CIRCUIT SYNTHESIS (NCS) ───────────────────────
     float accumulated_h = 0.0f;
     int cycles = 0;
     nca::layers::HaltingState h_state;
@@ -106,28 +110,22 @@ void MultimodalEngine::step(const float* text_in, const float* image_in, float* 
     std::vector<size_t> active_logic_blocks;
 
     while (accumulated_h < nca::config::ACT_HALT_THRESHOLD && cycles < nca::config::MAX_ACT_CYCLES) {
-        // A. Temporal Backbone
         nca::layers::glr_step(h_glr_.get(), W_glr_alpha_.get(), W_glr_beta_.get(), state_.get(), D);
         for(size_t i=0; i<D; ++i) state_[i] += h_glr_[i];
 
-        // B. Dynamic Wiring: Hashed Logic Routing
         router_->route(state_.get(), active_logic_blocks);
         nca::linalg::mx_quantize_x(state_.get(), x_q);
 
         for (size_t block_idx : active_logic_blocks) {
             alignas(64) float gate_res[16], up_res[16];
-            // Each block is a Rank-16 saturated operation
             nca::linalg::mx_rank16_dot(&W_mlp_gate_pool_[block_idx * 16], x_q, gate_res);
             nca::linalg::mx_rank16_dot(&W_mlp_up_pool_[block_idx * 16], x_q, up_res);
-            
-            // "Reform" the logic into the state (Stochastic Update)
             for(int i=0; i<16; ++i) {
                 float silu = gate_res[i] / (1.0f + std::exp(-gate_res[i]));
                 state_[(block_idx * 16 + i) % D] += silu * up_res[i];
             }
         }
 
-        // C. ACT Halting
         bool should_halt = false;
         accumulated_h += nca::layers::halting_step(x_q, W_halt_, 0.0f, h_state, should_halt);
         if(should_halt) break;

@@ -1,36 +1,24 @@
-# NCA Function Registry & API Contract (job.md)
+# NCA — Component Registry (Job Status)
 
-This document tracks all built and verified mathematical functions within the NCA project.
+> **Status**: **STABLE PARAMETER CONTRACT (v6.1)**
+> **Goal**: Comprehensive API and Logic Mapping.
 
-## `nca::linalg` (The Saturated Math Core)
+| Component | Responsibility | Performance Target | Status |
+| :--- | :--- | :--- | :--- |
+| **MultimodalEngine** | Orchestrates Vision -> Logic recursive ACT loop. | > 100 tok/s | **STABLE** |
+| **HashedRouter** | Rank-16 VNNI LSH router for Expert selection. | < 50 us / call | **SATURATED** |
+| **LatentAdapter** | Cross-modal projection (Vision -> Logic). | < 200 us / call | **SATURATED** |
+| **SpectralPruner** | Entropy-based spatial gating (E-AdaPrune). | < 300 us / scan | **SATURATED** |
+| **Backbone Stack** | Gated Linear RNN + State-Space Modeling. | < 10 us / step | **SATURATED** |
+| **VNNI Kernels** | Low-level Rank-16 saturated linalg. | ~1 cycle / FMA | **PHYSICAL LIMIT** |
 
-### 1. `mx_quad_dot`
-- **Signature**: `void mx_quad_dot(const MXINT8Tensor& w0, ..., const MXUINT8Tensor& x, float& o0, ...)`
-- **Trick**: **Geometric Register Reuse**. Processes 4 rows against 1 shared activation vector.
-- **Performance**: **2.3 us** for 1024D (performing 4 dot products). Faster than a single scalar dot!
-- **Status**: **SATURATED**. Hits L1-load port limits.
+## 1. Top-Level API (`MultimodalEngine`)
+- `step(text_in, img_in, out)`: Executes the complete neural circuit.
+- `load_weights()`: (Phase 17) Loads .safetensors into persistent anchors.
 
-### 2. `mx_gemv`
-- **Signature**: `void mx_gemv(const MXINT8Tensor& W, const MXUINT8Tensor& x, float* y, size_t rows, size_t cols)`
-- **Performance**: **139 us** for 1024x1024.
-- **Tricks**: Rank-4 sequential scan, software prefetching, and log-space scale fusion.
+## 2. Linalg Contract (`mx_linear.hpp`)
+- `mx_rank16_dot`: Main saturated workhorse (1 Activation Load / 16 FMA).
+- `mx_gemv`: Block-quantized matrix-vector multiplication.
 
-## `nca::layers` (The Fused Backbone)
-
-### 3. `glr_step`
-- **Performance**: **0.26 cycles/element**.
-- **Status**: **ALU-Bound**. Cannot be optimized further on Ice Lake.
-
-### 4. `halting_step`
-- **Performance**: **1.7 us**. 
-- **Trick**: Branchless AVX-512 minimax sigmoid proxy.
-
-## `nca::execution` (Routing & Fusion)
-
-### 5. `shuffle_active_tokens`
-- **Performance**: **5.1 us**.
-- **Trick**: SIMD physical reordering to enable sequential scans.
-
-### 6. `multimodal_fused_step`
-- **Description**: Horizontal core fusion of Vision SSM and Logic Quantization.
-- **Impact**: Zero memory round-trips for intermediate multimodal activations.
+## 3. Router Contract (`hashed_router.hpp`)
+- `route(x, indices)`: Selects Top-K experts from pool using LSH.

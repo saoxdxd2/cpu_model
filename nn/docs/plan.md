@@ -1,23 +1,19 @@
 # NCA — Nano-Core Architecture Implementation Plan
 
-> **Status**: **NEURAL CIRCUIT SYNTHESIS COMPLETE (v6.0)**
-> **Goal**: Beat Transformers on CPU inference via Hashed Logic Routing.
+> **Status**: **STABLE PARAMETER CONTRACT (v6.1)**
+> **Goal**: Beat Transformers on CPU inference via Randomized Hashed Routing.
 
 | Phase | Task | Description | Status |
 | :--- | :--- | :--- | :--- |
-| 1-3 | AMI Core | Base Math, Activations, VNNI Kernels | DONE |
-| 4-8 | Backbone | GLR, SSM, SLA, MLP, ACT Halting | DONE |
-| 9-10 | Destruct | Complexity Destruction & Modern RAII | DONE |
-| 11-13 | Multi-Modal | Vision Scanner, Pruner, Latent Adapters | DONE |
-| 14 | Integrated | Full Model Convergence & Spectral Gating | DONE |
-| **15** | **Synthesis** | **Hashed Logic Routing & Expert Pool** | **DONE** |
-| 16 | Optimize | Bit-Level Decompression (INT4/NF4) | TODO |
-| 17 | Training | KFAC Second-Order Optimizer in C++ | TODO |
+| 1-13 | Foundation | AMI Core, Multi-Modal Kernels | DONE |
+| 14 | Integration | Model Convergence & Spectral Gating | DONE |
+| **15** | **Router** | **Saturated VNNI Hashed Router** | **DONE** |
+| 16 | Stabilize | Fixed-Seed Contract & Deterministic Testing | DONE |
+| 17 | Finalize | Bit-Level Decompression (INT4/NF4) | TODO |
+| 18 | Training | KFAC Second-Order Optimizer in C++ | TODO |
 
-## Neural Circuit Synthesis (Phase 15)
-The architecture has transitioned from dense math to **dynamic circuit execution**:
-1.  **Hashed Logic Router (HLR)**: Uses Randomized Projections (LSH) to jump directly to relevant parameters.
-2.  **Expert Pool**: Replaced fixed MLP layers with an **Associative Memory Pool** of logic primitives.
-3.  **Dynamic Reforming**: Every token "wires together" a unique sub-circuit, bypassing 98% of the weights.
-
-The model now achieves **~190 tokens/s** with true sparse logic execution on a single core.
+## Parameter Contract (Phase 16)
+The architecture is now mathematically stable and Reproducible:
+1.  **Saturated Router**: `HashedRouter` now uses real Rank-16 VNNI kernels for expert selection.
+2.  **Deterministic Contract**: Weights are initialized via a **Fixed Seed** to ensure output reproducibility.
+3.  **Golden Reference**: `test_final.cpp` validates the model against a deterministic FNV-1a hash.

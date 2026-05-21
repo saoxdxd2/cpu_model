@@ -29,8 +29,8 @@ public:
 
 private:
     Config cfg_;
-    // Random projection matrix (Hashed Anchors)
-    nca::simd::aligned_unique_ptr<float[]> projections_;
+    // Hashed Anchors stored as MXINT8 for Rank-16 VNNI saturation
+    nca::simd::aligned_unique_ptr<MXINT8Tensor[]> projections_;
 };
 
 } // namespace nca::linalg

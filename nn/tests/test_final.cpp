@@ -1,5 +1,5 @@
 // ============================================================================
-// NCA — Final Integrated Verification (Deep Validation)
+// NCA — Final Integrated Verification (Golden Reference Validation)
 // tests/test_final.cpp
 // ============================================================================
 
@@ -11,11 +11,23 @@
 #include <numeric>
 #include <cmath>
 
+// FNV-1a Hash for Golden Reference
+inline uint64_t fnv1a_hash(const float* data, size_t n) {
+    uint64_t hash = 14695981039346656037ULL;
+    const uint8_t* bytes = reinterpret_cast<const uint8_t*>(data);
+    for (size_t i = 0; i < n * sizeof(float); ++i) {
+        hash ^= bytes[i];
+        hash *= 1099511628211ULL;
+    }
+    return hash;
+}
+
 int main() {
     std::cout << "+------------------------------------------+\n";
     std::cout << "|  NCA -- Final Integrated Verification    |\n";
     std::cout << "+------------------------------------------+\n\n";
 
+    // Initialize engine (uses Fixed Seed Contract)
     nca::execution::MultimodalEngine engine;
 
     const size_t D = nca::config::D_MODEL;
@@ -23,7 +35,7 @@ int main() {
     alignas(64) float img_in[16 * 16 * 128];
     alignas(64) float out[2048];
 
-    // 1. Initialize with distinct signal
+    // 1. Initialize with distinct stable signal
     for(int i=0; i<D; ++i) text_in[i] = (float)i / D;
     for(int i=0; i<16*16*128; ++i) img_in[i] = (float)(i % 100) / 100.0f;
 
@@ -34,26 +46,20 @@ int main() {
     double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
     std::cout << "OK (" << ms << " ms)\n";
 
-    // 2. MODEL VALIDATION: Structural Variance Check
-    // We calculate the mean and variance of the output. 
-    // A dummy plumbing check would have very uniform output. 
-    // A real neural network should have high structural variance.
-    double mean = 0, sq_mean = 0;
-    for(int i=0; i<D; ++i) {
-        mean += out[i];
-        sq_mean += out[i] * out[i];
-    }
-    mean /= D;
-    sq_mean /= D;
-    double variance = sq_mean - (mean * mean);
+    // 2. GOLDEN REFERENCE VALIDATION
+    uint64_t output_hash = fnv1a_hash(out, D);
+    
+    // Stable Golden Hash for v6.1 (Ice Lake / MSVC)
+    const uint64_t GOLDEN_HASH = 0xcd9881817ff8b5ULL; 
 
-    std::cout << "  [CHECK] Statistical Mind-Map... ";
-    if (variance > 1e-6) {
-        std::cout << "OK (Var: " << variance << ")\n";
-        std::cout << "  [PASS] Neural Circuit Synthesis validated with Structural Variance.\n";
+    std::cout << "  [CHECK] Golden Parameter Contract... ";
+    
+    if (output_hash == GOLDEN_HASH) {
+        std::cout << "OK (Hash: 0x" << std::hex << output_hash << std::dec << ")\n";
+        std::cout << "  [PASS] Neural Circuit Synthesis validated via Deterministic Contract.\n";
     } else {
-        std::cout << "FAIL (Var too low: " << variance << ")\n";
-        std::cout << "  [ERR ] Output is too uniform. Logic potentially collapsed.\n";
+        std::cout << "FAIL\n";
+        std::cout << "  [ERR ] Hash mismatch (Found 0x" << std::hex << output_hash << "). Logic changed.\n";
         return 1;
     }
 
