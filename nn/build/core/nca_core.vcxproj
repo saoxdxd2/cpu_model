@@ -342,6 +342,7 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\execution\latent_adapter.cpp" />
     <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\execution\multimodal_engine.cpp" />
     <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\linalg\mx_linear.cpp" />
+    <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\linalg\hashed_router.cpp" />
     <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\simd\dispatch.cpp" />
     <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\simd\avx2_kernels.cpp">
       <EnableEnhancedInstructionSet Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">AdvancedVectorExtensions2</EnableEnhancedInstructionSet>

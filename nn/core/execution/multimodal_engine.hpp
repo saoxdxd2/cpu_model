@@ -7,6 +7,7 @@
 #include "core/simd/memory.hpp"
 #include "core/execution/latent_adapter.hpp"
 #include "core/linalg/mx_linear.hpp"
+#include "core/linalg/hashed_router.hpp"
 #include <memory>
 #include <vector>
 
@@ -30,8 +31,11 @@ private:
     // Logic Weights (Backbone)
     nca::simd::aligned_unique_ptr<float[]> W_glr_alpha_;
     nca::simd::aligned_unique_ptr<float[]> W_glr_beta_;
-    std::vector<nca::linalg::MXINT8Tensor> W_mlp_gate_;
-    std::vector<nca::linalg::MXINT8Tensor> W_mlp_up_;
+    
+    // Hashed Logic Memory (Pool of Experts)
+    std::vector<nca::linalg::MXINT8Tensor> W_mlp_gate_pool_;
+    std::vector<nca::linalg::MXINT8Tensor> W_mlp_up_pool_;
+    std::unique_ptr<nca::linalg::HashedRouter> router_;
     
     // Bridge Core
     nca::execution::LatentAdapter adapter_;
@@ -43,7 +47,6 @@ private:
     nca::simd::aligned_unique_ptr<float[]> state_;
     nca::simd::aligned_unique_ptr<float[]> vision_latent_;
     nca::simd::aligned_unique_ptr<float[]> h_glr_;
-    nca::simd::aligned_unique_ptr<float[]> h_ssm_;
 };
 
 } // namespace nca::execution

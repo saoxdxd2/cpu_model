@@ -14,6 +14,7 @@ set(OLD_GLOB
   "C:/Users/sao/Documents/cpu_model/nn/core/layers/mlp.hpp"
   "C:/Users/sao/Documents/cpu_model/nn/core/layers/sla.hpp"
   "C:/Users/sao/Documents/cpu_model/nn/core/layers/ssm.hpp"
+  "C:/Users/sao/Documents/cpu_model/nn/core/linalg/hashed_router.hpp"
   "C:/Users/sao/Documents/cpu_model/nn/core/linalg/mx_linear.hpp"
   "C:/Users/sao/Documents/cpu_model/nn/core/log.hpp"
   "C:/Users/sao/Documents/cpu_model/nn/core/normalization.hpp"

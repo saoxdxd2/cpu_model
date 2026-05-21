@@ -26,6 +26,7 @@ add_library(nca_core STATIC
 
     # ── Linalg ──
     linalg/mx_linear.cpp
+    linalg/hashed_router.cpp
 
     # ── SIMD Kernels ──
     simd/dispatch.cpp
