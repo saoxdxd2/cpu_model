@@ -166,13 +166,13 @@ void mx_fused_ssm_silu_quantize_scalar(
             max_abs = std::max(max_abs, std::abs(y_d));
         }
 
-        float scale = max_abs / 254.0f;
-        float inv_scale = (scale == 0.0f) ? 0.0f : 1.0f / scale;
-        y_q.scales[b] = static_cast<uint8_t>(std::max(0, std::min(255, static_cast<int>(scale * 255.0f))));
+        y_q.scales[b] = nca::linalg::extract_e8m0(max_abs);
+        float scale = nca::linalg::decode_e8m0_scale(y_q.scales[b]);
+        float inv_scale = (scale > 0.0f) ? 1.0f / scale : 0.0f;
 
         for (size_t i = 0; i < 32; ++i) {
             float val = std::round(y_buf[i] * inv_scale);
-            y_q.data[b * 32 + i] = static_cast<uint8_t>(std::max(0, std::min(254, static_cast<int>(val))));
+            y_q.data[b * 32 + i] = static_cast<uint8_t>(std::clamp(val + 128.0f, 0.0f, 255.0f));
         }
     }
 }
@@ -237,23 +237,26 @@ void mx_fused_ssm_silu_quantize_avx512(
         __m512 v_abs1 = _mm512_abs_ps(v_y1);
         float max_val = _mm512_reduce_max_ps(_mm512_max_ps(v_abs0, v_abs1));
 
-        uint32_t bits = std::bit_cast<uint32_t>(max_val);
-        uint8_t exp = (max_val == 0.0f) ? 0 : ((bits >> 23) & 0xFF);
-        y_q.scales[b] = exp;
-
-        float scale = std::bit_cast<float>((static_cast<uint32_t>(exp) << 23));
-        float inv_scale = (scale > 0.0f) ? (254.0f / scale) : 0.0f;
+        y_q.scales[b] = nca::linalg::extract_e8m0(max_val);
+        float scale = nca::linalg::decode_e8m0_scale(y_q.scales[b]);
+        float inv_scale = (scale > 0.0f) ? 1.0f / scale : 0.0f;
         __m512 v_inv = _mm512_set1_ps(inv_scale);
 
-        __m512 v_q0 = _mm512_roundscale_ps(_mm512_mul_ps(v_y0, v_inv), _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-        __m512 v_q1 = _mm512_roundscale_ps(_mm512_mul_ps(v_y1, v_inv), _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+        __m512 v_q0 = _mm512_mul_ps(v_y0, v_inv);
+        __m512 v_q1 = _mm512_mul_ps(v_y1, v_inv);
 
         __m512i v_i0 = _mm512_cvtps_epi32(v_q0);
         __m512i v_i1 = _mm512_cvtps_epi32(v_q1);
-        __m512i v_pack16 = _mm512_packs_epi32(v_i0, v_i1);
-        v_pack16 = _mm512_add_epi16(v_pack16, _mm512_set1_epi16(127));
-        __m256i v_pack8 = _mm512_cvtepi16_epi8(v_pack16);
-        _mm256_storeu_si256(reinterpret_cast<__m256i*>(&y_q.data[b * 32]), v_pack8);
+
+        // Offset by 128 and clamp to [0, 255] — branchless via min/max
+        __m512i v_128 = _mm512_set1_epi32(128);
+        v_i0 = _mm512_add_epi32(v_i0, v_128);
+        v_i1 = _mm512_add_epi32(v_i1, v_128);
+        v_i0 = _mm512_min_epi32(_mm512_max_epi32(v_i0, _mm512_setzero_si512()), _mm512_set1_epi32(255));
+        v_i1 = _mm512_min_epi32(_mm512_max_epi32(v_i1, _mm512_setzero_si512()), _mm512_set1_epi32(255));
+
+        _mm_storeu_si128(reinterpret_cast<__m128i*>(&y_q.data[b * 32]),      _mm512_cvtepi32_epi8(v_i0));
+        _mm_storeu_si128(reinterpret_cast<__m128i*>(&y_q.data[b * 32 + 16]), _mm512_cvtepi32_epi8(v_i1));
     }
 }
 #endif

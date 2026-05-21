@@ -1,0 +1,26 @@
+{
+  "context": {
+    "fileFiltering": {
+      "respectGitIgnore": false,
+      "respectGeminiIgnore": true
+    }
+  },
+  "security": {
+    "enableConseca": true
+  },
+  "experimental": {
+    "gemmaModelRouter": {
+      "autoStartServer": true
+    },
+    "autoMemory": true,
+    "contextManagement": true,
+    "generalistProfile": true
+  },
+  "general": {
+    "vimMode": true
+  },
+  "ui": {
+    "terminalBackgroundPollingInterval": 10,
+    "hideWindowTitle": true
+  }
+}

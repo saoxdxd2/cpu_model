@@ -15,6 +15,7 @@
 
 #include <array>
 #include <sstream>
+#include <optional>
 
 #ifdef _MSC_VER
 #include <intrin.h>  // __cpuid, __cpuidex
@@ -120,7 +121,20 @@ const CPUFeatures& detect() {
     return features;
 }
 
+static std::optional<Backend> g_override_backend;
+
+void set_override_backend(Backend b) {
+    g_override_backend = b;
+}
+
+void clear_override_backend() {
+    g_override_backend.reset();
+}
+
 Backend best_backend() {
+    if (g_override_backend.has_value()) {
+        return g_override_backend.value();
+    }
     const auto& f = detect();
     if (f.has_vnni())  return Backend::AVX512;
     if (f.has_avx2())  return Backend::AVX2;

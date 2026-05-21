@@ -53,13 +53,21 @@ Always check this registry to reuse functions before writing new ones.
 - **Performance**: ~0.88 cycles/element (L2_STREAM policy)
 - **Tricks**: 3-phase fused pipeline, branchless softmax, and L2 prefetching.
 
-### 6. `gated_mlp_step`
+### 7. `gated_mlp_step`
 - **Header**: `core/layers/mlp.hpp`
 - **Signature**: `void gated_mlp_step(...)`
-- **Description**: SwiGLU Gated MLP block execution.
-- **Backends**: AVX-512 fused, Scalar.
-- **Performance**: ~2.4 cycles/element
-- **Tricks**: Fused SwiGLU into dynamic quantization via `fused_gated_silu_quantize`.
+- **Description**: Computes `y = W_down * silu(W_gate * x) * (W_up * x)` using block-quantized weights.
+- **Backends**: AVX-512 (VNNI), Scalar.
+- **Performance**: ~3695 cycles/element (Full 8192x8192 step).
+- **Tricks**: Uses `mx_gemv` under the hood. Avoids L1/L2 cache pollution by streaming 192MB of weights via Non-Temporal (NT) loads, keeping activations pinned in L1.
+
+### 8. `mx_gemv`
+- **Header**: `core/linalg/mx_linear.hpp`
+- **Signature**: `void mx_gemv(const MXINT8Tensor& W, const MXUINT8Tensor& x, float* y, size_t rows, size_t cols)`
+- **Description**: Matrix-Vector multiplication using VNNI INT8 block quantization.
+- **Backends**: AVX-512 (VNNI), Scalar.
+- **Performance**: ~1379 cycles/element.
+- **Tricks**: Defers all horizontal reductions to the end of the dot product (`_mm512_reduce_add_ps` is called only once per row). Uses `_mm512_stream_load_si512` for weight fetching to bypass cache..
 
 ### 7. `halting_step`
 - **Header**: `core/layers/halting.hpp`

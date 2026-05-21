@@ -352,6 +352,7 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\layers\mlp.cpp" />
     <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\layers\halting.cpp" />
     <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\vision\scanner.cpp" />
+    <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\execution\route_planner.cpp" />
   </ItemGroup>
   <ItemGroup />
   <ItemGroup>

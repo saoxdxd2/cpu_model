@@ -42,13 +42,13 @@ void fused_gated_silu_quantize_scalar(
         }
 
         // Quantize block
-        float scale = max_abs / 254.0f;
-        float inv_scale = (scale == 0.0f) ? 0.0f : 1.0f / scale;
-        out_q.scales[b] = static_cast<uint8_t>(std::max(0, std::min(255, static_cast<int>(scale * 255.0f)))); // Simplified E8M0 encoding for now
+        out_q.scales[b] = nca::linalg::extract_e8m0(max_abs);
+        float scale = nca::linalg::decode_e8m0_scale(out_q.scales[b]);
+        float inv_scale = (scale > 0.0f) ? 1.0f / scale : 0.0f;
 
         for (size_t i = 0; i < 32; ++i) {
             float val = std::round(hidden[i] * inv_scale);
-            out_q.data[b * 32 + i] = static_cast<uint8_t>(std::max(0, std::min(254, static_cast<int>(val))));
+            out_q.data[b * 32 + i] = static_cast<uint8_t>(std::clamp(val + 128.0f, 0.0f, 255.0f));
         }
     }
 }
@@ -86,36 +86,32 @@ void fused_gated_silu_quantize_avx512(
         float max_val = _mm512_reduce_max_ps(v_max);
         
         // Encode scale (E8M0 approx)
-        uint32_t bits = std::bit_cast<uint32_t>(max_val);
-        uint8_t exp = (max_val == 0.0f) ? 0 : ((bits >> 23) & 0xFF);
-        out_q.scales[b] = exp;
+        out_q.scales[b] = nca::linalg::extract_e8m0(max_val);
         
         // Quantize
-        float scale = std::bit_cast<float>((static_cast<uint32_t>(exp) << 23));
-        float inv_scale = (scale > 0.0f) ? (254.0f / scale) : 0.0f;
+        float scale = nca::linalg::decode_e8m0_scale(out_q.scales[b]);
+        float inv_scale = (scale > 0.0f) ? 1.0f / scale : 0.0f;
         __m512 v_inv = _mm512_set1_ps(inv_scale);
         
         __m512 v_q0 = _mm512_mul_ps(v_h0, v_inv);
         __m512 v_q1 = _mm512_mul_ps(v_h1, v_inv);
         
-        v_q0 = _mm512_roundscale_ps(v_q0, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-        v_q1 = _mm512_roundscale_ps(v_q1, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-        
-        // Convert to int32 -> uint8 (we assume positive here or shift? MX uses uint8 for activations)
-        // For simplicity, we just use cvtps_epi32 and then truncate.
+        // Convert to int32, add 128 offset, clamp 0-255
         __m512i v_i0 = _mm512_cvtps_epi32(v_q0);
         __m512i v_i1 = _mm512_cvtps_epi32(v_q1);
         
-        // Pack to 16-bit then 8-bit
-        __m512i v_pack16 = _mm512_packs_epi32(v_i0, v_i1); // 32x16-bit
-        // To get uint8, we should probably add 128 or just use epi16 packing.
-        // Assuming MXUINT8Tensor is 0-254 and we shift by +127:
-        __m512i v_offset = _mm512_set1_epi16(127);
-        v_pack16 = _mm512_add_epi16(v_pack16, v_offset);
+        __m512i v_128 = _mm512_set1_epi32(128);
+        v_i0 = _mm512_add_epi32(v_i0, v_128);
+        v_i1 = _mm512_add_epi32(v_i1, v_128);
         
-        __m256i v_pack8 = _mm512_cvtepi16_epi8(v_pack16); // Extract lower 8 bits of each 16-bit element
+        __m512i v_0 = _mm512_setzero_si512();
+        __m512i v_255 = _mm512_set1_epi32(255);
+        v_i0 = _mm512_min_epi32(_mm512_max_epi32(v_i0, v_0), v_255);
+        v_i1 = _mm512_min_epi32(_mm512_max_epi32(v_i1, v_0), v_255);
         
-        _mm256_storeu_si256(reinterpret_cast<__m256i*>(&out_q.data[b * 32]), v_pack8);
+        // Pack into uint8
+        _mm_storeu_si128(reinterpret_cast<__m128i*>(&out_q.data[b * 32]), _mm512_cvtepi32_epi8(v_i0));
+        _mm_storeu_si128(reinterpret_cast<__m128i*>(&out_q.data[b * 32 + 16]), _mm512_cvtepi32_epi8(v_i1));
     }
 }
 #endif

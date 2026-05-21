@@ -40,6 +40,9 @@
     <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\vision\scanner.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\execution\route_planner.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="C:\Users\sao\Documents\cpu_model\nn\core\CMakeLists.txt" />

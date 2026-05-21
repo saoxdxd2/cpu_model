@@ -28,6 +28,9 @@ add_library(nca_core STATIC
 
     # ── Vision Layers ──
     vision/scanner.cpp
+
+    # ── Execution ──
+    execution/route_planner.cpp
 )
 
 target_include_directories(nca_core PUBLIC

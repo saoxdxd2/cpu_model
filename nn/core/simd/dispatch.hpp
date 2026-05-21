@@ -34,6 +34,8 @@ enum class Backend {
 };
 
 Backend best_backend();
+void set_override_backend(Backend b);
+void clear_override_backend();
 const char* backend_name(Backend b) noexcept;
 
 #define NCA_DISPATCH_KERNEL(f512, f256, f_scalar, ...) \

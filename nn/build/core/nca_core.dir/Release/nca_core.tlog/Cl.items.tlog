@@ -11,3 +11,4 @@ C:\Users\sao\Documents\cpu_model\nn\core\layers\sla.cpp;C:\Users\sao\Documents\c
 C:\Users\sao\Documents\cpu_model\nn\core\layers\mlp.cpp;C:\Users\sao\Documents\cpu_model\nn\build\core\nca_core.dir\Release\mlp.obj
 C:\Users\sao\Documents\cpu_model\nn\core\layers\halting.cpp;C:\Users\sao\Documents\cpu_model\nn\build\core\nca_core.dir\Release\halting.obj
 C:\Users\sao\Documents\cpu_model\nn\core\vision\scanner.cpp;C:\Users\sao\Documents\cpu_model\nn\build\core\nca_core.dir\Release\scanner.obj
+C:\Users\sao\Documents\cpu_model\nn\core\execution\route_planner.cpp;C:\Users\sao\Documents\cpu_model\nn\build\core\nca_core.dir\Release\route_planner.obj

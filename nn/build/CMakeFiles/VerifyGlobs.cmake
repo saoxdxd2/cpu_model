@@ -5,12 +5,14 @@
 file(GLOB_RECURSE NEW_GLOB LIST_DIRECTORIES false "C:/Users/sao/Documents/cpu_model/nn/core/*.hpp")
 set(OLD_GLOB
   "C:/Users/sao/Documents/cpu_model/nn/core/activations.hpp"
+  "C:/Users/sao/Documents/cpu_model/nn/core/execution/route_planner.hpp"
   "C:/Users/sao/Documents/cpu_model/nn/core/layers/glr.hpp"
   "C:/Users/sao/Documents/cpu_model/nn/core/layers/halting.hpp"
   "C:/Users/sao/Documents/cpu_model/nn/core/layers/mlp.hpp"
   "C:/Users/sao/Documents/cpu_model/nn/core/layers/sla.hpp"
   "C:/Users/sao/Documents/cpu_model/nn/core/layers/ssm.hpp"
   "C:/Users/sao/Documents/cpu_model/nn/core/linalg/mx_linear.hpp"
+  "C:/Users/sao/Documents/cpu_model/nn/core/log.hpp"
   "C:/Users/sao/Documents/cpu_model/nn/core/normalization.hpp"
   "C:/Users/sao/Documents/cpu_model/nn/core/simd/avx2_kernels.hpp"
   "C:/Users/sao/Documents/cpu_model/nn/core/simd/avx2_math.hpp"
