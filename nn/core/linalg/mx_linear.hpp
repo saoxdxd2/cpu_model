@@ -66,4 +66,10 @@ void mx_fused_silu_quantize_x(const float* __restrict in, MXUINT8Tensor& out);
 
 float mx_dot(const MXINT8Tensor& w, const MXUINT8Tensor& x);
 
+// Matrix-Vector Multiplication: y = W * x
+// W: [rows, cols] (MXINT8)
+// x: [cols] (MXUINT8)
+// y: [rows] (float)
+void mx_gemv(const MXINT8Tensor& W, const MXUINT8Tensor& x, float* y, size_t rows, size_t cols);
+
 } // namespace nca::linalg

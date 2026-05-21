@@ -12,7 +12,7 @@ namespace nca::simd::avx512 {
 float vnni_dot(const nca::linalg::MXINT8Tensor* __restrict w, const nca::linalg::MXUINT8Tensor* __restrict x) {
     float global_sum = 0.0f;
     size_t b = 0;
-    size_t num_blocks = w->num_blocks;
+    size_t num_blocks = std::min(w->num_blocks, x->num_blocks);
     
     for (; b <= num_blocks - 2; b += 2) [[likely]] {
         __m512i vW = _mm512_load_si512((const __m512i*)&w->data[b * 32]);

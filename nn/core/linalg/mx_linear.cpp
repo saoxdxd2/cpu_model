@@ -136,4 +136,23 @@ float mx_dot(const MXINT8Tensor& w, const MXUINT8Tensor& x) {
     throw std::runtime_error("Hardware does not support AVX-512 VNNI instructions.");
 }
 
+void mx_gemv(const MXINT8Tensor& W, const MXUINT8Tensor& x, float* y, size_t rows, size_t cols) {
+    // Basic implementation wrapping vnni_dot.
+    // In a highly optimized version, we would unroll the rows to maximize VNNI throughput.
+    size_t blocks_per_row = cols / 32;
+    for (size_t r = 0; r < rows; ++r) {
+        MXINT8Tensor w_row;
+        w_row.data = W.data + r * cols;
+        w_row.scales = W.scales + r * blocks_per_row;
+        w_row.w_sums = W.w_sums + r * blocks_per_row;
+        w_row.num_blocks = blocks_per_row;
+        y[r] = mx_dot(w_row, x);
+        
+        // Prevent destructor from freeing the borrowed pointers
+        w_row.data = nullptr;
+        w_row.scales = nullptr;
+        w_row.w_sums = nullptr;
+    }
+}
+
 } // namespace nca::linalg

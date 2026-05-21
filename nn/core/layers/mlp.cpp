@@ -151,24 +151,15 @@ void gated_mlp_step(
     // 1. Quantize x
     nca::linalg::mx_quantize_x(x, x_q);
     
-    // 2. Gate = W_gate * x_q
-    // Note: Since W_gate is [d_inner, d_model] and x_q is [d_model], 
-    // we need to compute dot products.
-    // For now we assume a matrix-vector loop using mx_dot:
-    for(size_t i=0; i < d_inner; ++i) {
-        // Pseudo-code implementation using existing mx_dot over sub-spans.
-        // In a real optimized system we'd have a VNNI GEMV.
-        gate_buf[i] = 1.0f; // placeholder to prevent auto-gen crash
-        up_buf[i] = 1.0f;
-    }
+    // 2. Gate = W_gate * x_q and Up = W_up * x_q
+    nca::linalg::mx_gemv(W_gate, x_q, gate_buf, d_inner, d_model);
+    nca::linalg::mx_gemv(W_up, x_q, up_buf, d_inner, d_model);
     
     // 3. Fused hidden = silu(gate) * up -> quantize to hidden_q
     fused_gated_silu_quantize(gate_buf, up_buf, hidden_q, d_inner);
     
     // 4. y = W_down * hidden_q
-    for(size_t i=0; i < d_model; ++i) {
-        y[i] = 1.0f; // placeholder
-    }
+    nca::linalg::mx_gemv(W_down, hidden_q, y, d_model, d_inner);
 }
 
 } // namespace nca::layers

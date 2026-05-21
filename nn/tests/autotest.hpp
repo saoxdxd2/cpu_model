@@ -50,13 +50,13 @@ template <typename T> struct ArgGen;
 // -- float pointers --
 template <> struct ArgGen<float*> {
     float* p;
-    ArgGen()  { p = (float*)_aligned_malloc(D * 32 * sizeof(float), 64); std::memset(p, 0, D * 32 * sizeof(float)); }
+    ArgGen()  { p = (float*)_aligned_malloc(D * D * sizeof(float), 64); std::memset(p, 0, D * D * sizeof(float)); }
     ~ArgGen() { _aligned_free(p); }
     float* get() { return p; }
 };
 template <> struct ArgGen<const float*> {
     float* p;
-    ArgGen()  { p = (float*)_aligned_malloc(D * 32 * sizeof(float), 64); std::memset(p, 0, D * 32 * sizeof(float)); }
+    ArgGen()  { p = (float*)_aligned_malloc(D * D * sizeof(float), 64); std::memset(p, 0, D * D * sizeof(float)); }
     ~ArgGen() { _aligned_free(p); }
     const float* get() { return p; }
 };
@@ -77,11 +77,11 @@ template <> struct ArgGen<std::span<const float>> {
 
 // -- MX tensors (by reference) --
 template <> struct ArgGen<nca::linalg::MXINT8Tensor&> {
-    nca::linalg::MXINT8Tensor t{D / 32};
+    nca::linalg::MXINT8Tensor t{D * D / 32};
     nca::linalg::MXINT8Tensor& get() { return t; }
 };
 template <> struct ArgGen<const nca::linalg::MXINT8Tensor&> {
-    nca::linalg::MXINT8Tensor t{D / 32};
+    nca::linalg::MXINT8Tensor t{D * D / 32};
     const nca::linalg::MXINT8Tensor& get() { return t; }
 };
 template <> struct ArgGen<nca::linalg::MXUINT8Tensor&> {
