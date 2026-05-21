@@ -62,6 +62,7 @@ struct MXUINT8Tensor {
 
 void mx_quantize_w(const float* __restrict in, MXINT8Tensor& out);
 void mx_quantize_x(const float* __restrict in, MXUINT8Tensor& out);
+void mx_fused_silu_quantize_x(const float* __restrict in, MXUINT8Tensor& out);
 
 float mx_dot(const MXINT8Tensor& w, const MXUINT8Tensor& x);
 

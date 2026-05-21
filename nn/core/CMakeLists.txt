@@ -21,6 +21,13 @@ add_library(nca_core STATIC
 
     # ── Backbone Layers ──
     layers/glr.cpp
+    layers/ssm.cpp
+    layers/sla.cpp
+    layers/mlp.cpp
+    layers/halting.cpp
+
+    # ── Vision Layers ──
+    vision/scanner.cpp
 )
 
 target_include_directories(nca_core PUBLIC

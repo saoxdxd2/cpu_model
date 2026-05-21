@@ -4,12 +4,26 @@ project(nca_tests)
 find_package(Torch REQUIRED)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
 
-# Provide LibTorch library directory
 set(LIBTORCH_LIB_DIR "${TORCH_INSTALL_PREFIX}/lib")
 
-# ── Auto-Detect Profiler Suite ────────────────────────────────────────────────
-add_executable(test_auto test_auto.cpp)
+# ── Zero-Maintenance Auto-Discovery Profiler ──────────────────────────────────
+# The Python script takes ZERO arguments. It finds core/ by itself via __file__.
+# CONFIGURE_DEPENDS ensures CMake re-globs when any header is added or removed.
+find_package(Python3 REQUIRED)
+
+file(GLOB_RECURSE CORE_HEADERS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/core/*.hpp")
+
+add_custom_command(
+    OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/test_auto_generated.cpp
+    COMMAND Python3::Interpreter ${CMAKE_CURRENT_SOURCE_DIR}/autogenerate.py
+    DEPENDS
+        ${CMAKE_CURRENT_SOURCE_DIR}/autogenerate.py
+        ${CORE_HEADERS}
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Generating C++ auto-profiler..."
+)
+
+add_executable(test_auto ${CMAKE_CURRENT_SOURCE_DIR}/test_auto_generated.cpp)
 target_include_directories(test_auto PRIVATE ${CMAKE_SOURCE_DIR})
 target_link_libraries(test_auto PRIVATE nca_core "${TORCH_LIBRARIES}")
 target_compile_options(test_auto PRIVATE /arch:AVX512 /O2 /fp:fast)
-# ─────────────────────────────────────────────────────────────────────────────

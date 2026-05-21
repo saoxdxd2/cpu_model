@@ -25,6 +25,21 @@
     <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\layers\glr.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\layers\ssm.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\layers\sla.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\layers\mlp.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\layers\halting.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\vision\scanner.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="C:\Users\sao\Documents\cpu_model\nn\core\CMakeLists.txt" />

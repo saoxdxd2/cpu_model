@@ -12,5 +12,6 @@ namespace nca::simd::avx512 {
 float vnni_dot(const nca::linalg::MXINT8Tensor* __restrict w, const nca::linalg::MXUINT8Tensor* __restrict x);
 
 void mx_quantize_x(const float* __restrict in, nca::linalg::MXUINT8Tensor* __restrict out);
+void mx_fused_silu_quantize_x(const float* __restrict in, nca::linalg::MXUINT8Tensor* __restrict out);
 
 } // namespace nca::simd::avx512

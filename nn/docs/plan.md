@@ -86,14 +86,14 @@ Instead of a single monolithic model with an attention bottleneck, NCA splits in
 | Phase | Subsystem | Description | Status |
 |---|---|---|---|
 | **0** | **Foundation** | CMake C++20, LibTorch 2.9.1+cpu setup, CPUID SIMD detection, config constants, MX block size verification tests. | **COMPLETED** |
-| **1** | **AMI Normalization** | FP32 / BF16 RMSNorm kernels. Strict high-precision for recurrent states. AVX2/AVX-512 paths. | Pending |
-| **2** | **AMI Activations** | GELU and SiLU kernels. Tested and isolated. | Pending |
-| **3** | **AMI MX Math Core** | VNNI matrix multiplications. MXINT8/MXINT4 block unpacking, INT8 dynamic activation generation, `VPDPBUSD` execution, E8M0 scale application. | Pending |
-| **4** | **GLR Block** | Gated Linear Recurrence state tracking, diagonal gates, fused linear attention. | Pending |
-| **5** | **SSM Block** | Selective State-Space Model continuous dynamics scan. | Pending |
-| **6** | **SLA Block** | Sparse Local Attention sliding window masking (W=256). | Pending |
-| **7** | **ACT & MLP** | GatedMLP implementation and the Halting Gate (Entropy classifier + L/H cycling logic). | Pending |
-| **8** | **Vision: Stage 1** | Global Scanner (DW-Conv + 2D-SSM). | Pending |
+| **1** | **AMI Normalization** | FP32 / BF16 RMSNorm kernels. Strict high-precision for recurrent states. AVX2/AVX-512 paths. | **COMPLETED** |
+| **2** | **AMI Activations** | GELU and SiLU kernels. Tested and isolated. | **COMPLETED** |
+| **3** | **AMI MX Math Core** | VNNI matrix multiplications. MXINT8/MXINT4 block unpacking, INT8 dynamic activation generation, `VPDPBUSD` execution, E8M0 scale application. | **COMPLETED** |
+| **4** | **GLR Block** | Gated Linear Recurrence state tracking, diagonal gates, fused linear attention. | **COMPLETED** |
+| **5** | **SSM Block** | Selective State-Space Model continuous dynamics scan. | **COMPLETED** |
+| **6** | **SLA Block** | Sparse Local Attention sliding window masking (W=256). | **COMPLETED** |
+| **7** | **ACT & MLP** | GatedMLP implementation and the Halting Gate (Entropy classifier + L/H cycling logic). | **COMPLETED** |
+| **8** | **Vision: Stage 1** | Global Scanner (DW-Conv + 2D-SSM). | **COMPLETED** |
 | **9** | **Vision: Stage 2** | E-AdaPrune Spectral Budget (SVD to determine $K$ tokens). | Pending |
 | **10** | **Vision: Stage 3** | Region Proposer & AIR Optimal Transport (Sinkhorn patch selection). | Pending |
 | **11** | **Vision: Stage 4** | Detail Inspector & Semantic Compressor (Cross-Attention squeeze). | Pending |

@@ -6,3 +6,8 @@ C:\Users\sao\Documents\cpu_model\nn\core\normalization.cpp;C:\Users\sao\Document
 C:\Users\sao\Documents\cpu_model\nn\core\activations.cpp;C:\Users\sao\Documents\cpu_model\nn\build\core\nca_core.dir\Release\activations.obj
 C:\Users\sao\Documents\cpu_model\nn\core\linalg\mx_linear.cpp;C:\Users\sao\Documents\cpu_model\nn\build\core\nca_core.dir\Release\mx_linear.obj
 C:\Users\sao\Documents\cpu_model\nn\core\layers\glr.cpp;C:\Users\sao\Documents\cpu_model\nn\build\core\nca_core.dir\Release\glr.obj
+C:\Users\sao\Documents\cpu_model\nn\core\layers\ssm.cpp;C:\Users\sao\Documents\cpu_model\nn\build\core\nca_core.dir\Release\ssm.obj
+C:\Users\sao\Documents\cpu_model\nn\core\layers\sla.cpp;C:\Users\sao\Documents\cpu_model\nn\build\core\nca_core.dir\Release\sla.obj
+C:\Users\sao\Documents\cpu_model\nn\core\layers\mlp.cpp;C:\Users\sao\Documents\cpu_model\nn\build\core\nca_core.dir\Release\mlp.obj
+C:\Users\sao\Documents\cpu_model\nn\core\layers\halting.cpp;C:\Users\sao\Documents\cpu_model\nn\build\core\nca_core.dir\Release\halting.obj
+C:\Users\sao\Documents\cpu_model\nn\core\vision\scanner.cpp;C:\Users\sao\Documents\cpu_model\nn\build\core\nca_core.dir\Release\scanner.obj

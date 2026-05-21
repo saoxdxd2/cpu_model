@@ -99,6 +99,36 @@ void mx_quantize_x(const float* __restrict in, MXUINT8Tensor& out) {
     mx_quantize_x_scalar(in, &out);
 }
 
+void mx_fused_silu_quantize_x_scalar(const float* __restrict in, MXUINT8Tensor* __restrict out) {
+    for (size_t b = 0; b < out->num_blocks; ++b) {
+        float max_abs = 0;
+        float silu_cache[32];
+        for (int i=0; i<32; ++i) {
+            float x = in[b*32 + i];
+            float silu = x / (1.0f + std::exp(-x));
+            silu_cache[i] = silu;
+            max_abs = std::max(max_abs, std::abs(silu));
+        }
+        
+        out->scales[b] = extract_e8m0(max_abs);
+        float scale = decode_e8m0_scale(out->scales[b]);
+        float inv = scale > 0 ? 1.0f / scale : 0.0f;
+        
+        for (int i=0; i<32; ++i) {
+            float v = std::round(silu_cache[i] * inv);
+            out->data[b*32 + i] = static_cast<uint8_t>(std::clamp(v + 128.0f, 0.0f, 255.0f)); 
+        }
+    }
+}
+
+void mx_fused_silu_quantize_x(const float* __restrict in, MXUINT8Tensor& out) {
+    if (simd::best_backend() == simd::Backend::AVX512) [[likely]] {
+        simd::avx512::mx_fused_silu_quantize_x(in, &out);
+        return;
+    }
+    mx_fused_silu_quantize_x_scalar(in, &out);
+}
+
 float mx_dot(const MXINT8Tensor& w, const MXUINT8Tensor& x) {
     if (simd::best_backend() == simd::Backend::AVX512) [[likely]] {
         return simd::avx512::vnni_dot(&w, &x);
