@@ -35,8 +35,8 @@ struct MXTensorBase {
     MXTensorBase() = default;
     MXTensorBase(size_t b, size_t n) : num_blocks(b) {
         if (b > 0) {
-            data_owner = nca::simd::make_aligned_unique<T>(b * n);
-            scales_owner = nca::simd::make_aligned_unique<uint8_t>(b);
+            data_owner = nca::simd::make_aligned_unique<T[]>(b * n);
+            scales_owner = nca::simd::make_aligned_unique<uint8_t[]>(b);
             data = data_owner.get(); scales = scales_owner.get();
         }
     }
@@ -51,7 +51,7 @@ struct MXINT8Tensor : public MXTensorBase<int8_t> {
     MXINT8Tensor() = default;
     explicit MXINT8Tensor(size_t b) : MXTensorBase<int8_t>(b, 32) {
         if (b > 0) {
-            w_sums_owner = nca::simd::make_aligned_unique<int32_t>(b);
+            w_sums_owner = nca::simd::make_aligned_unique<int32_t[]>(b);
             w_sums = w_sums_owner.get();
         }
     }

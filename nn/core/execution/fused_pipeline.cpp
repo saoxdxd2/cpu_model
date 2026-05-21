@@ -1,44 +1,45 @@
 // ============================================================================
-// NCA -- Fused Multimodal Pipeline
+// NCA — Fused Inference Pipeline
 // core/execution/fused_pipeline.cpp
 // ============================================================================
 
 #include "core/execution/fused_pipeline.hpp"
-#include "core/layers/ssm.hpp"
-#include "core/simd/dispatch.hpp"
-#include <vector>
+#include "core/simd/avx512_kernels.hpp"
+#include "core/linalg/mx_linear.hpp"
+#include "config/model_config.hpp"
+#include <immintrin.h>
 
 namespace nca::execution {
 
 void multimodal_fused_step(
+    const float* __restrict text_in,
     const float* __restrict img_in,
-    float* __restrict output,
-    nca::vision::ScannerConfig v_cfg,
-    const nca::linalg::MXINT8Tensor& W_gate,
-    const nca::linalg::MXINT8Tensor& W_up,
-    const nca::linalg::MXINT8Tensor& W_down,
-    float* __restrict h_ssm,
-    const float* __restrict A_ssm,
-    const float* __restrict B_ssm,
-    const float* __restrict C_ssm
+    const nca::linalg::MXINT8Tensor* __restrict W_gate,
+    const nca::linalg::MXINT8Tensor* __restrict W_up,
+    float* __restrict out
 ) {
-    if (!img_in || !output || !h_ssm || !A_ssm || !B_ssm || !C_ssm) return;
-    if (!W_down.data) return;
+    alignas(64) float conv_out[2048]; // Using D_MODEL=2048
+    for(size_t i=0; i<nca::config::D_MODEL; ++i) conv_out[i] = img_in[i] * 0.5f;
 
-    const auto d_inner = v_cfg.H * v_cfg.W * v_cfg.C;
-    std::vector<float> conv_out(d_inner);
-    
-    nca::linalg::MXUINT8Tensor hidden_q(d_inner / 32);
-    nca::layers::SSMConfig ssm_cfg{d_inner, 16};
-    
-    nca::layers::mx_fused_ssm_silu_quantize_step(
-        h_ssm, A_ssm, B_ssm, C_ssm, 
-        conv_out.data(), 
-        hidden_q, 
-        ssm_cfg
-    );
+    nca::linalg::MXUINT8Tensor x_q(nca::config::D_MODEL);
+    nca::linalg::mx_quantize_x(conv_out, x_q);
 
-    nca::linalg::mx_gemv(W_down, hidden_q, output, W_down.num_blocks * 32 / d_inner, d_inner);
+    alignas(64) float gate_res[2048];
+    alignas(64) float up_res[2048];
+
+    for(size_t i=0; i < nca::config::D_MODEL; i += 16) {
+        nca::linalg::mx_rank16_dot(&W_gate[i], x_q, &gate_res[i]);
+        nca::linalg::mx_rank16_dot(&W_up[i], x_q, &up_res[i]);
+    }
+
+    nca::simd::avx512::silu(gate_res, nca::config::D_MODEL);
+
+    for(size_t i=0; i < nca::config::D_MODEL; i += 16) {
+        __m512 v_gate = _mm512_load_ps(&gate_res[i]);
+        __m512 v_up = _mm512_load_ps(&up_res[i]);
+        __m512 v_res = _mm512_mul_ps(v_gate, v_up);
+        _mm512_store_ps(&out[i], v_res);
+    }
 }
 
 } // namespace nca::execution

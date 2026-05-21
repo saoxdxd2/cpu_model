@@ -1,59 +1,90 @@
 // ============================================================================
-// NCA — Fused Multimodal Inference Engine
+// NCA — Multimodal Engine Implementation
 // core/execution/multimodal_engine.cpp
 // ============================================================================
 
 #include "core/execution/multimodal_engine.hpp"
-#include "core/execution/route_planner.hpp"
-#include "core/simd/dispatch.hpp"
+#include "config/model_config.hpp"
+#include "core/simd/memory.hpp"
+#include "core/vision/scanner.hpp"
+#include "core/vision/spectral_pruner.hpp"
+#include "core/execution/latent_adapter.hpp"
+#include "core/layers/glr.hpp"
+#include "core/layers/ssm.hpp"
+#include "core/layers/sla.hpp"
+#include "core/layers/mlp.hpp"
+#include "core/layers/halting.hpp"
+#include <cmath>
+#include <algorithm>
+#include <span>
+#include <iostream>
 
 namespace nca::execution {
 
-MultimodalEngine::MultimodalEngine(Config cfg) 
-    : cfg_(cfg),
-      pruner_(std::make_unique<nca::vision::SpectralPruner>(cfg.prune_cfg)),
-      adapter_(std::make_unique<nca::execution::LatentAdapter>(cfg.adapter_cfg)) {
+MultimodalEngine::MultimodalEngine() {
+    state_ = nca::simd::make_aligned_unique<float[]>(nca::config::D_MODEL);
+    vision_latent_ = nca::simd::make_aligned_unique<float[]>(nca::config::D_MODEL);
+    h_glr_ = nca::simd::make_aligned_unique<float[]>(nca::config::D_MODEL);
+    h_ssm_ = nca::simd::make_aligned_unique<float[]>(nca::config::D_MODEL);
     
-    const size_t d_inner = cfg.vision_cfg.H * cfg.vision_cfg.W * cfg.vision_cfg.C;
-    scanner_buf_.resize(d_inner);
-    active_indices_.resize(cfg.prune_cfg.n_tokens);
-    shuffled_buf_.resize(cfg.prune_cfg.n_tokens * cfg.prune_cfg.d_model);
+    for(size_t i=0; i<nca::config::D_MODEL; ++i) {
+        state_[i] = 0.0f; h_glr_[i] = 0.0f; h_ssm_[i] = 0.0f;
+    }
 }
 
-void MultimodalEngine::step(
-    const float* __restrict image_in,
-    float* __restrict hidden_state,
-    float* __restrict logic_output
-) {
-    // ── STAGE 1: VISION SCAN & PRUNE ────────────────────────────────────────
-    // (Note: weights passed here are examples for the architectural flow)
-    size_t k = pruner_->prune(scanner_buf_, active_indices_);
+void MultimodalEngine::step(const float* text_in, const float* image_in, float* out) {
+    if (image_in) {
+        nca::vision::ScannerConfig scan_cfg; // default 16, 16, 128
+        size_t n_patches = scan_cfg.H * scan_cfg.W;
+        size_t d_state = 16;
+        
+        auto A = nca::simd::make_aligned_unique<float[]>(n_patches * d_state);
+        auto B = nca::simd::make_aligned_unique<float[]>(d_state);
+        auto C = nca::simd::make_aligned_unique<float[]>(d_state);
+        auto h = nca::simd::make_aligned_unique<float[]>(n_patches * d_state);
+        auto y = nca::simd::make_aligned_unique<float[]>(n_patches * scan_cfg.C);
 
-    // ── STAGE 2: DATA LOCALITY SHUFFLE ──────────────────────────────────────
-    nca::execution::RoutePlan plan(cfg_.prune_cfg.n_tokens);
-    plan.num_active = k;
-    std::copy(active_indices_.begin(), active_indices_.begin() + k, plan.active_indices);
-    nca::execution::shuffle_active_tokens(scanner_buf_.data(), shuffled_buf_.data(), plan, cfg_.prune_cfg.d_model);
+        nca::vision::ssm2d_scan(h.get(), A.get(), B.get(), C.get(), image_in, y.get(), scan_cfg);
+        
+        nca::vision::SpectralPruner::Config pruner_cfg = { n_patches, scan_cfg.C, 0.1f };
+        nca::vision::SpectralPruner pruner(pruner_cfg);
+        std::vector<size_t> active_indices(n_patches);
+        pruner.prune(std::span<const float>(y.get(), n_patches * scan_cfg.C), active_indices);
+        
+        LatentAdapter adapter;
+        adapter.project(y.get(), vision_latent_.get());
+        
+        for(size_t i=0; i<nca::config::D_MODEL; ++i) state_[i] += vision_latent_[i];
+    }
 
-    // ── STAGE 3: LATENT PROJECTION (Bridge) ─────────────────────────────────
-    nca::linalg::MXUINT8Tensor x_q(shuffled_buf_.size() / 32);
-    nca::linalg::mx_quantize_x(shuffled_buf_.data(), x_q);
-    adapter_->project(x_q, hidden_state);
+    float accumulated_h = 0.0f;
+    int cycles = 0;
+    nca::layers::HaltingState h_state;
 
-    // ── STAGE 4: TRIPLE-HYBRID REASONING (Logic) ────────────────────────────
-    // This is where the actual "Neural Network" reasoning happens.
-    // We execute the recurrent backbone with the newly projected visual context.
-    
-    // 1. GLR Baseline (65% path)
-    nca::layers::glr_step(hidden_state, nullptr, nullptr, hidden_state, cfg_.d_model);
+    while (accumulated_h < nca::config::ACT_HALT_THRESHOLD && cycles < nca::config::MAX_ACT_CYCLES) {
+        auto a = nca::simd::make_aligned_unique<float[]>(nca::config::D_MODEL);
+        auto b = nca::simd::make_aligned_unique<float[]>(nca::config::D_MODEL);
+        std::fill(a.get(), a.get() + nca::config::D_MODEL, 0.5f);
+        std::fill(b.get(), b.get() + nca::config::D_MODEL, 0.5f);
 
-    // 2. Selective SSM Dynamics (20% path)
-    nca::layers::SSMConfig ssm_cfg{cfg_.d_model, 16};
-    nca::layers::ssm_step(nullptr, nullptr, nullptr, nullptr, hidden_state, logic_output, ssm_cfg);
+        nca::layers::glr_step(h_glr_.get(), a.get(), b.get(), state_.get(), nca::config::D_MODEL);
+        for(size_t i=0; i<nca::config::D_MODEL; ++i) state_[i] += h_glr_[i];
+        
+        nca::linalg::MXUINT8Tensor x_q(nca::config::D_MODEL);
+        nca::linalg::mx_quantize_x(state_.get(), x_q);
+        
+        nca::linalg::MXINT8Tensor w_h(nca::config::D_MODEL);
+        auto wh_f = nca::simd::make_aligned_unique<float[]>(nca::config::D_MODEL);
+        std::fill(wh_f.get(), wh_f.get() + nca::config::D_MODEL, 0.01f);
+        nca::linalg::mx_quantize_w(wh_f.get(), w_h);
 
-    // 3. ACT Halting Gate (System 2 Thinking)
-    bool should_halt = false;
-    nca::layers::halting_step(x_q, nca::linalg::MXINT8Tensor(0), 0.0f, halt_state_, should_halt);
+        bool should_halt = false;
+        accumulated_h += nca::layers::halting_step(x_q, w_h, 0.0f, h_state, should_halt);
+        if(should_halt) break;
+        cycles++;
+    }
+
+    if (out) std::copy(state_.get(), state_.get() + nca::config::D_MODEL, out);
 }
 
 } // namespace nca::execution

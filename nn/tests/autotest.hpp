@@ -52,8 +52,7 @@ template <typename T> struct ArgGen;
 template <> struct ArgGen<float*> {
     nca::simd::aligned_unique_ptr<float[]> p;
     size_t sz = 1024 * 1024;
-    ArgGen()  { p = nca::simd::make_aligned_unique<float>(sz); if(p) std::memset(p.get(), 0, sz * sizeof(float)); }
-    ~ArgGen() { }
+    ArgGen()  { p = nca::simd::make_aligned_unique<float[]>(sz); if(p) std::memset(p.get(), 0, sz * sizeof(float)); }
     void init(int seed) { if(p) for(size_t i=0; i<sz; ++i) p[i] = (float)((i + seed) % 255) / 255.0f; }
     float* get() { return p.get(); }
     uint64_t hash() { return hash_bytes(p.get(), sz * sizeof(float)); }
@@ -61,8 +60,7 @@ template <> struct ArgGen<float*> {
 template <> struct ArgGen<const float*> {
     nca::simd::aligned_unique_ptr<float[]> p;
     size_t sz = 1024 * 1024;
-    ArgGen()  { p = nca::simd::make_aligned_unique<float>(sz); if(p) std::memset(p.get(), 0, sz * sizeof(float)); }
-    ~ArgGen() { }
+    ArgGen()  { p = nca::simd::make_aligned_unique<float[]>(sz); if(p) std::memset(p.get(), 0, sz * sizeof(float)); }
     void init(int seed) { if(p) for(size_t i=0; i<sz; ++i) p[i] = (float)((i + seed) % 255) / 255.0f; }
     const float* get() { return p.get(); }
     uint64_t hash() { return hash_bytes(p.get(), sz * sizeof(float)); }
@@ -71,8 +69,7 @@ template <> struct ArgGen<const float*> {
 template <> struct ArgGen<size_t*> {
     nca::simd::aligned_unique_ptr<size_t[]> p;
     size_t sz = 1024 * 1024;
-    ArgGen()  { p = nca::simd::make_aligned_unique<size_t>(sz); if(p) std::memset(p.get(), 0, sz * sizeof(size_t)); }
-    ~ArgGen() { }
+    ArgGen()  { p = nca::simd::make_aligned_unique<size_t[]>(sz); if(p) std::memset(p.get(), 0, sz * sizeof(size_t)); }
     void init(int seed) { if(p) for(size_t i=0; i<sz; ++i) p[i] = (size_t)((i + seed) % 1024); }
     size_t* get() { return p.get(); }
     uint64_t hash() { return hash_bytes(p.get(), sz * sizeof(size_t)); }
@@ -80,16 +77,14 @@ template <> struct ArgGen<size_t*> {
 
 template <> struct ArgGen<std::span<float>> {
     nca::simd::aligned_unique_ptr<float[]> p;
-    ArgGen()  { p = nca::simd::make_aligned_unique<float>(D); if(p) std::memset(p.get(), 0, D * sizeof(float)); }
-    ~ArgGen() { }
+    ArgGen()  { p = nca::simd::make_aligned_unique<float[]>(D); if(p) std::memset(p.get(), 0, D * sizeof(float)); }
     void init(int seed) { if(p) for(size_t i=0; i<D; ++i) p[i] = (float)((i + seed) % 255) / 255.0f; }
     std::span<float> get() { return {p.get(), D}; }
     uint64_t hash() { return hash_bytes(p.get(), D * sizeof(float)); }
 };
 template <> struct ArgGen<std::span<const float>> {
     nca::simd::aligned_unique_ptr<float[]> p;
-    ArgGen()  { p = nca::simd::make_aligned_unique<float>(D); if(p) std::memset(p.get(), 0, D * sizeof(float)); }
-    ~ArgGen() { }
+    ArgGen()  { p = nca::simd::make_aligned_unique<float[]>(D); if(p) std::memset(p.get(), 0, D * sizeof(float)); }
     void init(int seed) { if(p) for(size_t i=0; i<D; ++i) p[i] = (float)((i + seed) % 255) / 255.0f; }
     std::span<const float> get() { return {p.get(), D}; }
     uint64_t hash() { return hash_bytes(p.get(), D * sizeof(float)); }
@@ -181,12 +176,12 @@ void invoke_impl(Func f, Tuple& t, std::index_sequence<Is...>) {
     f(std::get<Is>(t).get()...);
 }
 
-template <typename Func, typename Tuple, size_t... Is>
+template <typename Tuple, size_t... Is>
 void init_impl(Tuple& t, int seed, std::index_sequence<Is...>) {
     (std::get<Is>(t).init(seed), ...);
 }
 
-template <typename Func, typename Tuple, size_t... Is>
+template <typename Tuple, size_t... Is>
 uint64_t hash_impl(Tuple& t, std::index_sequence<Is...>) {
     uint64_t h = 0;
     ((h ^= std::get<Is>(t).hash() + 0x9e3779b9 + (h << 6) + (h >> 2)), ...);
@@ -205,20 +200,20 @@ struct BenchmarkRunner<R(*)(Args...)> {
 
         // 1. Correctness Verification (AMI)
         nca::simd::set_override_backend(nca::simd::Backend::Scalar);
-        init_impl<R(*)(Args...)>(t, 42, seq);
+        init_impl(t, 42, seq);
         invoke_impl(f, t, seq);
-        uint64_t hash_scalar = hash_impl<R(*)(Args...)>(t, seq);
+        uint64_t hash_scalar = hash_impl(t, seq);
         
         nca::simd::set_override_backend(nca::simd::Backend::AVX512);
-        init_impl<R(*)(Args...)>(t, 42, seq);
+        init_impl(t, 42, seq);
         invoke_impl(f, t, seq);
-        uint64_t hash_avx512 = hash_impl<R(*)(Args...)>(t, seq);
+        uint64_t hash_avx512 = hash_impl(t, seq);
         
         const char* status = (hash_scalar == hash_avx512) ? "OK (AMI EXACT)" : "OK (AMI APPROX)";
         
         // 2. Hardware Benchmarking
         nca::simd::clear_override_backend();
-        init_impl<R(*)(Args...)>(t, 42, seq);
+        init_impl(t, 42, seq);
         invoke_impl(f, t, seq);  // Warmup
         
         uint64_t runs_cyc[5];

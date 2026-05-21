@@ -4,48 +4,28 @@
 // core/execution/multimodal_engine.hpp
 // ============================================================================
 
-#include "core/vision/scanner.hpp"
-#include "core/vision/spectral_pruner.hpp"
-#include "core/execution/latent_adapter.hpp"
-#include "core/layers/glr.hpp"
-#include "core/layers/ssm.hpp"
-#include "core/layers/sla.hpp"
-#include "core/layers/halting.hpp"
+#include "core/simd/memory.hpp"
+#include <memory>
 #include <vector>
 
 namespace nca::execution {
 
 class MultimodalEngine {
 public:
-    struct Config {
-        nca::vision::ScannerConfig vision_cfg;
-        nca::vision::SpectralPruner::Config prune_cfg;
-        nca::execution::LatentAdapter::Config adapter_cfg;
-        size_t d_model;
-    };
-
-    explicit MultimodalEngine(Config cfg);
+    MultimodalEngine();
 
     // Executes the COMPLETE custom neural network logic:
-    // Vision (Scan+Prune) -> Bridge (Adapter) -> Logic (Hybrid Reasoning)
-    void step(
-        const float* __restrict image_in,
-        float* __restrict hidden_state, // [d_model]
-        float* __restrict logic_output   // [d_model]
-    );
+    // Vision (Scan+Prune) -> Bridge (Adapter) -> Recursive Logic (ACT Depth)
+    void step(const float* text_in, const float* image_in, float* out);
 
 private:
-    Config cfg_;
-    std::unique_ptr<nca::vision::SpectralPruner> pruner_;
-    std::unique_ptr<nca::execution::LatentAdapter> adapter_;
+    // Internal Aligned Buffers (L1-hot)
+    nca::simd::aligned_unique_ptr<float[]> state_;
+    nca::simd::aligned_unique_ptr<float[]> vision_latent_;
     
-    // Internal L1-hot buffers
-    std::vector<float> scanner_buf_;
-    std::vector<size_t> active_indices_;
-    std::vector<float> shuffled_buf_;
-    
-    // Logic Core States
-    nca::layers::HaltingState halt_state_;
+    // Recursive State
+    nca::simd::aligned_unique_ptr<float[]> h_glr_;
+    nca::simd::aligned_unique_ptr<float[]> h_ssm_;
 };
 
 } // namespace nca::execution

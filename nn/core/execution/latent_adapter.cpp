@@ -1,28 +1,45 @@
 // ============================================================================
-// NCA — Cross-Core Latent Adapter
+// NCA — Latent Adapter
 // core/execution/latent_adapter.cpp
 // ============================================================================
 
 #include "core/execution/latent_adapter.hpp"
-#include "core/simd/dispatch.hpp"
+#include "core/linalg/mx_linear.hpp"
+#include "core/simd/memory.hpp"
+#include "config/model_config.hpp"
+#include <random>
 
 namespace nca::execution {
 
-LatentAdapter::LatentAdapter(Config cfg) 
-    : cfg_(cfg), weights_(cfg.d_dst * cfg.d_src / 32) {
-    // Note: num_blocks = (rows * cols) / 32
-    // Here we assume rows=d_dst, cols=d_src. 
-    // weights_ was initialized with enough blocks for the whole matrix.
+LatentAdapter::LatentAdapter() {
+    // Allocate raw memory for array of MXINT8Tensor
+    void* ptr = _aligned_malloc(nca::config::D_MODEL * sizeof(nca::linalg::MXINT8Tensor), 64);
+    if (!ptr) throw std::bad_alloc();
+    nca::linalg::MXINT8Tensor* tensors = static_cast<nca::linalg::MXINT8Tensor*>(ptr);
+    
+    // Explicitly construct each element
+    for(size_t i=0; i<nca::config::D_MODEL; ++i) {
+        new (&tensors[i]) nca::linalg::MXINT8Tensor(nca::config::D_MODEL);
+    }
+    weights_.reset(tensors);
+
+    std::mt19937 gen(42);
+    std::uniform_real_distribution<float> dist(-0.02f, 0.02f);
+    
+    alignas(64) float temp[2048]; 
+    for(size_t i=0; i<nca::config::D_MODEL; ++i) {
+        for(size_t j=0; j<nca::config::D_MODEL; ++j) temp[j] = dist(gen);
+        nca::linalg::mx_quantize_w(temp, weights_[i]);
+    }
 }
 
-void LatentAdapter::project(
-    const nca::linalg::MXUINT8Tensor& x_src,
-    float* __restrict y_dst
-) const {
-    // ── REGISTER-SATURATED PROJECTION ────────────────────────────────────────
-    // We use the Rank-16 Saturated GEMV to ensure the bridge between agents
-    // is as fast as the agents themselves.
-    nca::linalg::mx_gemv(weights_, x_src, y_dst, cfg_.d_dst, cfg_.d_src);
+void LatentAdapter::project(const float* in, float* out) {
+    nca::linalg::MXUINT8Tensor in_q(nca::config::D_MODEL);
+    nca::linalg::mx_quantize_x(in, in_q);
+
+    for (size_t i = 0; i < nca::config::D_MODEL; i += 16) {
+        nca::linalg::mx_rank16_dot(&weights_[i], in_q, &out[i]);
+    }
 }
 
 } // namespace nca::execution

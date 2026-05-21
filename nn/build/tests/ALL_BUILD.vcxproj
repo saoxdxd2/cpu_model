@@ -178,6 +178,10 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
       <Project>{1EA459BC-61EC-3251-A69E-28BB8DDB8B57}</Project>
       <Name>test_auto</Name>
     </ProjectReference>
+    <ProjectReference Include="C:\Users\sao\Documents\cpu_model\nn\build\tests\test_final.vcxproj">
+      <Project>{937B9B4C-74AE-360A-B126-BE5CB68046F2}</Project>
+      <Name>test_final</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
