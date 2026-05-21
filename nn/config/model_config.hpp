@@ -10,19 +10,25 @@
 namespace nca::config {
 
 // ── ARCHITECTURE DIMENSIONS ────────────────────────────────────────────────
-constexpr size_t D_MODEL = 2048; // Must be power of 2 for FWHT
+constexpr size_t D_MODEL = 2048; 
 constexpr size_t VISION_FEATURE_GRID = 16; 
 constexpr size_t VISION_CHANNELS = 128;
 
 // ── RECURSIVE ACT CONFIG ────────────────────────────────────────────────────
 constexpr float ACT_HALT_THRESHOLD = 0.99f;
 constexpr int MAX_ACT_CYCLES = 16;
+constexpr int DEEP_ACT_CYCLES = 64; // For "Surprising" tokens
 
-// ── SPECTRAL RLS CONFIG (v7.0) ──────────────────────────────────────────────
-constexpr size_t SPECTRAL_BLOCK_SIZE = 2048; // Must match D_MODEL
-constexpr size_t KRONECKER_FACTOR_DIM = 45;   // ~sqrt(2048)
-constexpr float RLS_DAMPING = 1e-4f;
-constexpr float RLS_FORGETTING_FACTOR = 0.999f;
+// ── SDMS: SALIENCY & EXPERT CONFIG (v11.0) ──────────────────────────────────
+constexpr size_t N_MICRO_EXPERTS = 1024; // DeepSeekMoE style
+constexpr size_t TOP_K_EXPERTS = 16;     // Match Rank-16 Saturation
+constexpr size_t N_SHARED_EXPERTS = 2;   // Always active common knowledge
+constexpr float SALIENCY_THRESHOLD = 0.05f; // BLT-style entropy gate
+
+// ── SPECTRAL RLS CONFIG ─────────────────────────────────────────────────────
+constexpr size_t KRONECKER_FACTOR_DIM_A = 64;
+constexpr size_t KRONECKER_FACTOR_DIM_B = 32;
+constexpr float RLS_FORGETTING_FACTOR = 0.9999f; // Titans-style long memory
 
 // ── TOKEN REGISTRY ──────────────────────────────────────────────────────────
 constexpr int32_t TOKEN_PAD    = 0;
@@ -33,8 +39,10 @@ constexpr int32_t TOKEN_ANSWER = 4;
 
 // ── BACKEND SELECTION ───────────────────────────────────────────────────────
 enum class LogicBackend {
-    HashedRouter, // v6.2 Default
-    SpectralRLS   // v7.0 Opt-in
+    HashedRouter,
+    SpectralRLS,
+    SpectralRoutedExperts,
+    SDMS_Predictive // v11.0 Unified Saliency-Driven
 };
 
 struct EngineConfig {

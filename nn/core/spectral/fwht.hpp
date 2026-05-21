@@ -18,4 +18,7 @@ void fwht_inplace(std::span<float> data);
 // Note: FWHT is its own inverse up to a scaling factor 1/N.
 void ifwht_inplace(std::span<float> data);
 
+// Inverse transform without the 1/N scaling factor.
+void ifwht_no_scale(std::span<float> data);
+
 } // namespace nca::spectral

@@ -16,7 +16,8 @@ void spectral_logic_step(
     float* state, 
     const float* glr_proposal,
     nca::spectral::KroneckerRLSState& rls_state,
-    size_t d_model
+    size_t d_model,
+    bool should_learn = true
 );
 
 } // namespace nca::execution

@@ -13,6 +13,7 @@ C:\Users\sao\Documents\cpu_model\nn\core\spectral\spectral_logic.cpp;C:\Users\sa
 C:\Users\sao\Documents\cpu_model\nn\core\execution\route_planner.cpp;C:\Users\sao\Documents\cpu_model\nn\build\core\nca_core.dir\Release\route_planner.obj
 C:\Users\sao\Documents\cpu_model\nn\core\execution\fused_pipeline.cpp;C:\Users\sao\Documents\cpu_model\nn\build\core\nca_core.dir\Release\fused_pipeline.obj
 C:\Users\sao\Documents\cpu_model\nn\core\execution\latent_adapter.cpp;C:\Users\sao\Documents\cpu_model\nn\build\core\nca_core.dir\Release\latent_adapter.obj
+C:\Users\sao\Documents\cpu_model\nn\core\execution\importance.cpp;C:\Users\sao\Documents\cpu_model\nn\build\core\nca_core.dir\Release\importance.obj
 C:\Users\sao\Documents\cpu_model\nn\core\execution\multimodal_engine.cpp;C:\Users\sao\Documents\cpu_model\nn\build\core\nca_core.dir\Release\multimodal_engine.obj
 C:\Users\sao\Documents\cpu_model\nn\core\linalg\mx_linear.cpp;C:\Users\sao\Documents\cpu_model\nn\build\core\nca_core.dir\Release\mx_linear.obj
 C:\Users\sao\Documents\cpu_model\nn\core\linalg\hashed_router.cpp;C:\Users\sao\Documents\cpu_model\nn\build\core\nca_core.dir\Release\hashed_router.obj

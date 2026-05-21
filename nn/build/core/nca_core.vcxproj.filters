@@ -46,6 +46,9 @@
     <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\execution\latent_adapter.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\execution\importance.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\execution\multimodal_engine.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>

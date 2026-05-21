@@ -59,4 +59,8 @@ void ifwht_inplace(std::span<float> data) {
     }
 }
 
+void ifwht_no_scale(std::span<float> data) {
+    fwht_inplace(data);
+}
+
 } // namespace nca::spectral

@@ -6,6 +6,7 @@ file(GLOB_RECURSE NEW_GLOB LIST_DIRECTORIES false "C:/Users/sao/Documents/cpu_mo
 set(OLD_GLOB
   "C:/Users/sao/Documents/cpu_model/nn/core/activations.hpp"
   "C:/Users/sao/Documents/cpu_model/nn/core/execution/fused_pipeline.hpp"
+  "C:/Users/sao/Documents/cpu_model/nn/core/execution/importance.hpp"
   "C:/Users/sao/Documents/cpu_model/nn/core/execution/latent_adapter.hpp"
   "C:/Users/sao/Documents/cpu_model/nn/core/execution/multimodal_engine.hpp"
   "C:/Users/sao/Documents/cpu_model/nn/core/execution/route_planner.hpp"

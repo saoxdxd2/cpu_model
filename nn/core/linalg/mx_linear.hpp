@@ -65,12 +65,30 @@ void mx_quantize_w(const float* __restrict in, MXINT8Tensor& out);
 void mx_quantize_x(const float* __restrict in, MXUINT8Tensor& out);
 void mx_fused_silu_quantize_x(const float* __restrict in, MXUINT8Tensor& out);
 
+// Local Gaussian Optimizer: delta_W = lr * error * x / (var(x) + eps)
+void mx_update_gaussian_moment(
+    MXINT8Tensor& w, 
+    const MXUINT8Tensor& x_q, 
+    float error, 
+    float lr,
+    float precomputed_norm = 0.0f // 0 means compute internally
+);
+
+// Computes the Var(x) proxy (Power) once for multiple expert updates
+float mx_compute_activation_norm(const MXUINT8Tensor& x_q);
+
 float mx_dot(const MXINT8Tensor& w, const MXUINT8Tensor& x);
 void  mx_dual_dot(const MXINT8Tensor& w0, const MXINT8Tensor& w1, const MXUINT8Tensor& x, float& o0, float& o1);
 void  mx_quad_dot(const MXINT8Tensor& w0, const MXINT8Tensor& w1, const MXINT8Tensor& w2, const MXINT8Tensor& w3, const MXUINT8Tensor& x, float& o0, float& o1, float& o2, float& o3);
 
 void mx_rank16_dot(
     const MXINT8Tensor* __restrict weights, 
+    const MXUINT8Tensor& x,
+    float* __restrict outputs               
+);
+
+void mx_rank16_dot_ptrs(
+    const MXINT8Tensor** __restrict weights, 
     const MXUINT8Tensor& x,
     float* __restrict outputs               
 );

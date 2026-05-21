@@ -10,8 +10,10 @@
 - **Condense to Silicon**: Strip redundant code to minimize instruction cache pressure.
 - **Wavefront Execution**: Parallelize recurrent states along mathematically independent diagonals.
 - **Recursive ACT**: Intelligence is a function of time (cycles), not just parameters (depth).
+- **Online Grounding**: Weights are NOT static. The engine MUST adapt to High-Saliency Facts via Gaussian Moment Updates during inference.
 
-## 3. Current Status: FULLY CONDENSED & HARDENED (v6.3)
-- **Vision Core**: Wavefront Saturated (Diagonal Scanning + Gated Pruner).
-- **Logic Core**: Sparse Synthesis (Hashed Router + Triple-Hybrid Expert Pool).
-- **Verification**: Running at ~270 tokens/s with bit-perfect implementation contract.
+## 3. Current Status: GROUNDED BREAKTHROUGH (v27.0)
+- **Spectral Logic**: FWHT-domain state refinement using Kronecker-RLS ($O(N \log N)$).
+- **SDMS v11.0**: Saliency-Driven Multi-expert System with 1024 Micro-Experts.
+- **Adaptive ACT**: Dynamic recursion depth based on token importance/novelty.
+- **Verification**: Saturated VNNI kernels achieving bit-perfect "Golden Contract" stability.

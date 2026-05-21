@@ -42,3 +42,15 @@ add_executable(test_final ${CMAKE_CURRENT_SOURCE_DIR}/test_final.cpp)
 target_include_directories(test_final PRIVATE ${CMAKE_SOURCE_DIR})
 target_link_libraries(test_final PRIVATE nca_core "${TORCH_LIBRARIES}")
 target_compile_options(test_final PRIVATE /arch:AVX512 /O2 /fp:fast)
+
+# ── Transformer Killer Benchmark ──────────────────────────────────────────────
+add_executable(test_transformer_killer ${CMAKE_CURRENT_SOURCE_DIR}/test_transformer_killer.cpp)
+target_include_directories(test_transformer_killer PRIVATE ${CMAKE_SOURCE_DIR})
+target_link_libraries(test_transformer_killer PRIVATE nca_core "${TORCH_LIBRARIES}")
+target_compile_options(test_transformer_killer PRIVATE /arch:AVX512 /O2 /fp:fast)
+
+# ── Cognitive Integrity Benchmark ─────────────────────────────────────────────
+add_executable(test_cognitive ${CMAKE_CURRENT_SOURCE_DIR}/test_cognitive.cpp)
+target_include_directories(test_cognitive PRIVATE ${CMAKE_SOURCE_DIR})
+target_link_libraries(test_cognitive PRIVATE nca_core "${TORCH_LIBRARIES}")
+target_compile_options(test_cognitive PRIVATE /arch:AVX512 /O2 /fp:fast)

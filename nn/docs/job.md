@@ -1,24 +1,23 @@
 # NCA — Component Registry (Job Status)
 
-> **Status**: **STABLE PARAMETER CONTRACT (v6.1)**
+> **Status**: **GROUNDED PARAMETER CONTRACT (v27.0)**
 > **Goal**: Comprehensive API and Logic Mapping.
 
 | Component | Responsibility | Performance Target | Status |
 | :--- | :--- | :--- | :--- |
-| **MultimodalEngine** | Orchestrates Vision -> Logic recursive ACT loop. | > 100 tok/s | **STABLE** |
+| **MultimodalEngine** | Orchestrates Importance -> Spectral -> Expert ACT loop. | > 300 tok/s | **STABLE** |
+| **ImportanceClassifier** | Saliency & Novelty detection for online grounding. | < 20 us / call | **SATURATED** |
+| **SpectralLogic** | Kronecker-RLS domain correction and refinement. | < 100 us / call | **SATURATED** |
 | **HashedRouter** | Rank-16 VNNI LSH router for Expert selection. | < 50 us / call | **SATURATED** |
-| **LatentAdapter** | Cross-modal projection (Vision -> Logic). | < 200 us / call | **SATURATED** |
-| **SpectralPruner** | Entropy-based spatial gating (E-AdaPrune). | < 300 us / scan | **SATURATED** |
-| **Backbone Stack** | Gated Linear RNN + State-Space Modeling. | < 10 us / step | **SATURATED** |
+| **FWHT** | Fast Walsh-Hadamard Transform for spectral mapping. | < 10 us / step | **PHYSICAL LIMIT** |
 | **VNNI Kernels** | Low-level Rank-16 saturated linalg. | ~1 cycle / FMA | **PHYSICAL LIMIT** |
 
 ## 1. Top-Level API (`MultimodalEngine`)
-- `step(text_in, img_in, out)`: Executes the complete neural circuit.
-- `load_weights()`: (Phase 17) Loads .safetensors into persistent anchors.
+- `step(text_in, img_in, out)`: Executes importance-gated grounded logic.
+- `reset_state()`: Clears persistent RLS and momentum buffers.
 
-## 2. Linalg Contract (`mx_linear.hpp`)
-- `mx_rank16_dot`: Main saturated workhorse (1 Activation Load / 16 FMA).
-- `mx_gemv`: Block-quantized matrix-vector multiplication.
+## 2. Importance Contract (`importance.hpp`)
+- `classify(x, state, pred)`: Returns `ImportanceDecision` (Fact/Novelty/ACT cycles).
 
-## 3. Router Contract (`hashed_router.hpp`)
-- `route(x, indices)`: Selects Top-K experts from pool using LSH.
+## 3. Spectral Contract (`spectral_logic.hpp`)
+- `spectral_logic_step(...)`: Refines state using RLS-based spectral correction.

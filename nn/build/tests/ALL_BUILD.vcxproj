@@ -178,6 +178,10 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
       <Project>{1EA459BC-61EC-3251-A69E-28BB8DDB8B57}</Project>
       <Name>test_auto</Name>
     </ProjectReference>
+    <ProjectReference Include="C:\Users\sao\Documents\cpu_model\nn\build\tests\test_cognitive.vcxproj">
+      <Project>{F0000E45-BB9B-3AED-84D5-69EA2AD2CE41}</Project>
+      <Name>test_cognitive</Name>
+    </ProjectReference>
     <ProjectReference Include="C:\Users\sao\Documents\cpu_model\nn\build\tests\test_final.vcxproj">
       <Project>{937B9B4C-74AE-360A-B126-BE5CB68046F2}</Project>
       <Name>test_final</Name>
@@ -189,6 +193,10 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ProjectReference Include="C:\Users\sao\Documents\cpu_model\nn\build\tests\test_spectral.vcxproj">
       <Project>{F262A962-C8BD-399C-88E6-D21F0378FC85}</Project>
       <Name>test_spectral</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\sao\Documents\cpu_model\nn\build\tests\test_transformer_killer.vcxproj">
+      <Project>{987BDB79-EB61-3466-878A-D36211B6A14D}</Project>
+      <Name>test_transformer_killer</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

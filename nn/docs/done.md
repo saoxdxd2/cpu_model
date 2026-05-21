@@ -1,15 +1,14 @@
 # NCA — Detailed Completed Tasks & Changelog
 
-## 1. Logic Condensation (Phase 18) - Completed
-- **Aggressive Stripping**: Removed supersed scalar fallbacks in `mx_linear.cpp` and `scanner.cpp`. The codebase is now a high-signal VNNI implementation.
-- **Wavefront Parallelism**: Optimized `ssm2d_scan` to process image diagonals, destroying the serial 1D barrier.
-- **Memory Consolidation**: Consolidated L1-hot buffers and removed redundant allocations in the multimodal engine.
+## 1. Online Gaussian Grounding (Phase 27) - Completed
+- **Dynamic Weight Adaptation**: Implemented `mx_update_gaussian_moment` which allows the engine to update expert weights online during inference when high-saliency facts are detected.
+- **Importance-Gated Learning**: Integrated `ImportanceClassifier` to gate the learning process, ensuring only novel and structured information (Facts) triggers weight updates.
+- **Spectral Consistency**: Combined `SpectralLogic` (RLS) with expert updates to maintain global state consistency while learning local expert features.
 
-## 2. Parameter Stabilization (Phase 16-17) - Completed
-- **Deterministic Contract**: Fixed-seed initialization ensures Reproducible cognitive maps.
-- **Memory Hardening**: `aligned_unique_ptr` correctly handles non-trivial array construction/destruction.
-- **Robust Routing**: Fixed the 4096-expert limit and `nth_element` iterator boundary bug.
+## 2. Spectral Domain Integration (Phase 26) - Completed
+- **FWHT-Optimized Routing**: The engine now transforms the latent state into the spectral domain (Fast Walsh-Hadamard Transform) before routing, allowing the router to see global feature correlations.
+- **Recursive ACT Depth**: Logic path now supports up to 64 ACT cycles for "Facts", allowing for deep recursive reasoning when the `ImportanceClassifier` triggers a high-novelty signal.
 
-## 3. Neural Circuit Synthesis (Phase 15) - Completed
-- **Hashed Logic Routing (HLR)**: $O(K \log N)$ sparse expert selection.
-- **Associative Memory Pool**: Large-scale expert pool for $O(1)$ scaling potential.
+## 3. Hybrid Spectral Routing (Phase 22) - Completed
+- **Spectral Routed Experts (SRE)**: Hybrid backend combining `SpectralRLS` and `HashedRouter`.
+- **Triple-Backend Engine**: Refactored `MultimodalEngine` to support multiple logic paths.

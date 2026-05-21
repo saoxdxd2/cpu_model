@@ -35,6 +35,44 @@ void mx_fused_silu_quantize_x(const float* __restrict in, MXUINT8Tensor& out) {
     simd::avx512::mx_fused_silu_quantize_x(in, &out);
 }
 
+float mx_compute_activation_norm(const MXUINT8Tensor& x_q) {
+    const size_t bpr = x_q.num_blocks;
+    float power = 0;
+    for (size_t b = 0; b < bpr; ++b) {
+        float sx = decode_e8m0_scale(x_q.scales[b]);
+        for (int i = 0; i < 32; ++i) {
+            float val = (float)((int)x_q.data[b*32+i] - 128) * sx;
+            power += val * val;
+        }
+    }
+    return power + 1e-4f;
+}
+
+void mx_update_gaussian_moment(MXINT8Tensor& w, const MXUINT8Tensor& x_q, float error, float lr, float precomputed_norm) {
+    const size_t bpr = x_q.num_blocks;
+    float norm = (precomputed_norm > 0) ? precomputed_norm : mx_compute_activation_norm(x_q);
+    
+    // ── SATURATION CHECK ──
+    float current_total_w = 0;
+    for (size_t b = 0; b < bpr; ++b) current_total_w += decode_e8m0_scale(w.scales[b]);
+    if (current_total_w > 5.0f && lr > 0) lr *= 0.05f; 
+
+    for (size_t b = 0; b < bpr; ++b) {
+        float sw = decode_e8m0_scale(w.scales[b]);
+        float sx = decode_e8m0_scale(x_q.scales[b]);
+        float grad_scale = (lr * error * sx) / norm;
+        int32_t s_new = 0;
+        for (int i = 0; i < 32; ++i) {
+            float current_w = (float)w.data[b*32+i] * sw;
+            float x_val = (float)((int)x_q.data[b*32+i] - 128);
+            float new_w = current_w + grad_scale * x_val;
+            auto q = (int8_t)std::clamp(std::round(new_w / (sw + 1e-6f)), -127.f, 127.f);
+            w.data[b*32+i] = q; s_new += q;
+        }
+        w.w_sums[b] = s_new;
+    }
+}
+
 float mx_dot(const MXINT8Tensor& w, const MXUINT8Tensor& x) {
     return simd::avx512::vnni_dot(&w, &x);
 }
@@ -49,6 +87,10 @@ void mx_quad_dot(const MXINT8Tensor& w0, const MXINT8Tensor& w1, const MXINT8Ten
 
 void mx_rank16_dot(const MXINT8Tensor* __restrict weights, const MXUINT8Tensor& x, float* __restrict outputs) {
     simd::avx512::rank16_vnni_dot(weights, &x, outputs);
+}
+
+void mx_rank16_dot_ptrs(const MXINT8Tensor** __restrict weights, const MXUINT8Tensor& x, float* __restrict outputs) {
+    simd::avx512::rank16_vnni_dot_ptrs(weights, &x, outputs);
 }
 
 void mx_gemv(const MXINT8Tensor& W, const MXUINT8Tensor& x, float* y, size_t rows, size_t cols) {
