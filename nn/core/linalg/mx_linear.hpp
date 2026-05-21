@@ -75,6 +75,12 @@ float mx_dot(const MXINT8Tensor& w, const MXUINT8Tensor& x);
 void  mx_dual_dot(const MXINT8Tensor& w0, const MXINT8Tensor& w1, const MXUINT8Tensor& x, float& o0, float& o1);
 void  mx_quad_dot(const MXINT8Tensor& w0, const MXINT8Tensor& w1, const MXINT8Tensor& w2, const MXINT8Tensor& w3, const MXUINT8Tensor& x, float& o0, float& o1, float& o2, float& o3);
 
+void mx_rank16_dot(
+    const MXINT8Tensor* __restrict weights, // Array of 16 tensor views
+    const MXUINT8Tensor& x,
+    float* __restrict outputs               // Array of 16 floats
+);
+
 void  mx_gemv(const MXINT8Tensor& W, const MXUINT8Tensor& x, float* y, size_t rows, size_t cols);
 
 } // namespace nca::linalg

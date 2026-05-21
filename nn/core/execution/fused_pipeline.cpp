@@ -22,6 +22,9 @@ void multimodal_fused_step(
     const float* __restrict B_ssm,
     const float* __restrict C_ssm
 ) {
+    if (!img_in || !output || !h_ssm || !A_ssm || !B_ssm || !C_ssm) return;
+    if (!W_down.data) return;
+
     const auto d_inner = v_cfg.H * v_cfg.W * v_cfg.C;
     std::vector<float> conv_out(d_inner);
     

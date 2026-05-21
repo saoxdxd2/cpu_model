@@ -33,6 +33,12 @@ void quad_vnni_dot(
     float& out3
 );
 
+void rank16_vnni_dot(
+    const nca::linalg::MXINT8Tensor* __restrict weights,
+    const nca::linalg::MXUINT8Tensor* __restrict x,
+    float* __restrict outputs
+);
+
 void mx_quantize_x(const float* __restrict in, nca::linalg::MXUINT8Tensor* __restrict out);
 void mx_fused_silu_quantize_x(const float* __restrict in, nca::linalg::MXUINT8Tensor* __restrict out);
 

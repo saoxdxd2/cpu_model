@@ -25,10 +25,19 @@
     <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\vision\scanner.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\vision\spectral_pruner.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\execution\route_planner.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\execution\fused_pipeline.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\execution\latent_adapter.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\execution\multimodal_engine.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="C:\Users\sao\Documents\cpu_model\nn\core\linalg\mx_linear.cpp">

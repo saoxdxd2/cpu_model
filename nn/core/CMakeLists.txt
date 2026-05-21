@@ -16,10 +16,13 @@ add_library(nca_core STATIC
 
     # ── Vision Layers ──
     vision/scanner.cpp
+    vision/spectral_pruner.cpp
 
     # ── Execution ──
     execution/route_planner.cpp
     execution/fused_pipeline.cpp
+    execution/latent_adapter.cpp
+    execution/multimodal_engine.cpp
 
     # ── Linalg ──
     linalg/mx_linear.cpp
