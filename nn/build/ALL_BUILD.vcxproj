@@ -186,6 +186,10 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
       <Project>{937B9B4C-74AE-360A-B126-BE5CB68046F2}</Project>
       <Name>test_final</Name>
     </ProjectReference>
+    <ProjectReference Include="C:\Users\sao\Documents\cpu_model\nn\build\tests\test_robustness.vcxproj">
+      <Project>{6A62A40A-3BFE-3053-B040-A9ADF971EECC}</Project>
+      <Name>test_robustness</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

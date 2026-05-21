@@ -25,6 +25,12 @@ target_include_directories(test_auto PRIVATE ${CMAKE_SOURCE_DIR})
 target_link_libraries(test_auto PRIVATE nca_core "${TORCH_LIBRARIES}")
 target_compile_options(test_auto PRIVATE /arch:AVX512 /O2 /fp:fast)
 
+# ── Robustness Verification ───────────────────────────────────────────────────
+add_executable(test_robustness ${CMAKE_CURRENT_SOURCE_DIR}/test_robustness.cpp)
+target_include_directories(test_robustness PRIVATE ${CMAKE_SOURCE_DIR})
+target_link_libraries(test_robustness PRIVATE nca_core "${TORCH_LIBRARIES}")
+target_compile_options(test_robustness PRIVATE /arch:AVX512 /O2 /fp:fast)
+
 # ── Final Integrated Verification ─────────────────────────────────────────────
 add_executable(test_final ${CMAKE_CURRENT_SOURCE_DIR}/test_final.cpp)
 target_include_directories(test_final PRIVATE ${CMAKE_SOURCE_DIR})
