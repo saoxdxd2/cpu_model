@@ -27,6 +27,9 @@ public:
     // Projects x into hash space and returns the indices of the top-K experts.
     void route(const float* x, std::vector<size_t>& out_indices) const;
 
+    // [OPTIMIZATION] Zero-Allocation Routing
+    void route_to_buffer(const float* x, size_t* out_buffer, size_t* out_count) const;
+
 private:
     Config cfg_;
     // Hashed Anchors stored as MXINT8 for Rank-16 VNNI saturation

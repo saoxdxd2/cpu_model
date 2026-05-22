@@ -24,7 +24,6 @@ float ref_attention_step(int seq_len, int d_model) {
     // Simulating Attention: Score = Softmax(Q @ K_cache^T) @ V_cache
     std::vector<float> scores(seq_len);
     for (int i = 0; i < seq_len; ++i) {
-        float dot = 0;
         float* k_ptr = &k_cache[i * d_model];
         // Saturated AVX-512 dot product
         __m512 v_acc = _mm512_setzero_ps();

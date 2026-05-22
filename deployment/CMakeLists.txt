@@ -10,6 +10,8 @@ include_directories(
 
 add_library(nca_deploy SHARED
     nca_deploy.cpp
+    peripheral_bridge.cpp
+    creative_bridge.cpp
 )
 target_compile_definitions(nca_deploy PRIVATE NCA_DEPLOY_EXPORT)
 
@@ -25,8 +27,12 @@ target_link_libraries(test_alphabet nca_deploy nca_encoding)
 add_executable(test_ide_agent test_ide_agent.cpp)
 target_link_libraries(test_ide_agent nca_deploy nca_encoding)
 
+add_executable(aether_gateway aether_gateway.cpp peripheral_bridge.cpp aether_server.cpp)
+target_link_libraries(aether_gateway nca_deploy nca_encoding)
+
 target_link_libraries(nca_deploy nca_core)
 
 if(MSVC)
+    target_link_libraries(nca_deploy user32.lib)
     target_compile_options(nca_deploy PRIVATE /arch:AVX512 /Oi /Ot)
 endif()

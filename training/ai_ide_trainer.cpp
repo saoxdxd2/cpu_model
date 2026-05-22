@@ -21,7 +21,7 @@ public:
         : engine_(engine), tokenizer_(256, 2048) {
         
         optimizer_ = std::make_unique<torch::optim::Adam>(
-            std::vector<torch::Tensor>{torch::randn({80, 2048}, torch::requires_grad())}, 
+            std::vector<torch::Tensor>{torch::randn({(int64_t)80, (int64_t)2048}, torch::requires_grad())}, 
             torch::optim::AdamOptions(1e-4)
         );
     }

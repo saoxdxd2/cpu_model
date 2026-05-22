@@ -31,26 +31,25 @@ HashedRouter::HashedRouter(Config cfg) : cfg_(cfg) {
 }
 
 void HashedRouter::route(const float* x, std::vector<size_t>& out_indices) const {
+    size_t k = cfg_.top_k;
+    out_indices.resize(k);
+    size_t count = 0;
+    route_to_buffer(x, out_indices.data(), &count);
+    out_indices.resize(count);
+}
+
+void HashedRouter::route_to_buffer(const float* x, size_t* out_buffer, size_t* out_count) const {
     const size_t D = cfg_.d_model;
     const size_t N = cfg_.n_experts;
+    const size_t k_target = cfg_.top_k;
 
-    // ── 1. SALIENCE THRESHOLDING (Target 1 - SDR) ───────────────────────────
-    // We only route on the high-energy signal components
-    alignas(64) float x_salient[2048];
-    float sum_sq = 0.0f;
-    for(size_t i=0; i<D; ++i) sum_sq += x[i]*x[i];
-    float rms = std::sqrt(sum_sq / D);
-    float threshold = rms * 1.5f; // Extract peaks only
-
-    for(size_t i=0; i<D; ++i) {
-        x_salient[i] = (std::abs(x[i]) > threshold) ? x[i] : 0.0f;
-    }
-
+    // 1. Quantization (L1-Hot)
     MXUINT8Tensor x_q(D / 32);
-    nca::linalg::mx_quantize_x(x_salient, x_q);
+    nca::linalg::mx_quantize_x(x, x_q);
 
-    alignas(64) float scores[4096]; 
-    const size_t scan_limit = std::min(N, (size_t)4096);
+    // 2. Score Generation (Saturated VNNI)
+    alignas(64) float scores[1024]; // Max 1024 experts
+    const size_t scan_limit = std::min(N, (size_t)1024);
 
     size_t i = 0;
     for (; i + 15 < scan_limit; i += 16) {
@@ -60,15 +59,20 @@ void HashedRouter::route(const float* x, std::vector<size_t>& out_indices) const
         scores[i] = nca::linalg::mx_dot(projections_[i], x_q);
     }
 
-    std::vector<std::pair<float, size_t>> ranked(scan_limit);
-    for(size_t k=0; k<scan_limit; ++k) ranked[k] = {scores[k], k};
-    const size_t k = std::min(cfg_.top_k, scan_limit);
-    if (k < scan_limit) {
-        std::nth_element(ranked.begin(), ranked.begin() + k, ranked.end(),
-            [](auto& a, auto& b) { return a.first > b.first; });
+    // 3. Selection (O(NK) via simple linear scan to avoid allocations)
+    *out_count = std::min(k_target, scan_limit);
+    for (size_t j = 0; j < *out_count; ++j) {
+        float best_s = -1e9f;
+        size_t best_idx = 0;
+        for (size_t m = 0; m < scan_limit; ++m) {
+            if (scores[m] > best_s) {
+                best_s = scores[m];
+                best_idx = m;
+            }
+        }
+        out_buffer[j] = best_idx;
+        scores[best_idx] = -1e9f; // Mark as selected
     }
-    out_indices.clear();
-    for(size_t j=0; j < k; ++j) out_indices.push_back(ranked[j].second);
 }
 
 } // namespace nca::linalg

@@ -39,7 +39,7 @@ void WeightAdapter::inject_params(const torch::Tensor& source,
                                   size_t target_size) {
     auto s = source.to(torch::kCPU).to(torch::kFloat32).contiguous();
     const float* src_ptr = s.data_ptr<float>();
-    size_t source_size = s.numel();
+    size_t source_size = (size_t)s.numel();
 
     size_t copy_size = std::min(source_size, target_size);
     std::memcpy(target_ptr, src_ptr, copy_size * sizeof(float));

@@ -23,7 +23,6 @@ int main() {
     std::cout << " NCA — VISUAL REASONING BENCHMARK (VSCode GUI)         \n";
     std::cout << "========================================================\n\n";
 
-    const size_t D_MODEL = 2048;
     const size_t ACT_DIM = 80;
 
     // 1. Setup Multimodal Stack
