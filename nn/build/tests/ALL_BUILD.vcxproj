@@ -194,6 +194,14 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
       <Project>{F262A962-C8BD-399C-88E6-D21F0378FC85}</Project>
       <Name>test_spectral</Name>
     </ProjectReference>
+    <ProjectReference Include="C:\Users\sao\Documents\cpu_model\nn\build\tests\test_speed.vcxproj">
+      <Project>{8E5F0B38-517C-3062-B968-38DB79D52D67}</Project>
+      <Name>test_speed</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\sao\Documents\cpu_model\nn\build\tests\test_torch_integration.vcxproj">
+      <Project>{D3AF8727-328A-3156-AE67-C41BEC23D221}</Project>
+      <Name>test_torch_integration</Name>
+    </ProjectReference>
     <ProjectReference Include="C:\Users\sao\Documents\cpu_model\nn\build\tests\test_transformer_killer.vcxproj">
       <Project>{987BDB79-EB61-3466-878A-D36211B6A14D}</Project>
       <Name>test_transformer_killer</Name>

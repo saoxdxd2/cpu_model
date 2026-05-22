@@ -38,5 +38,7 @@ void rank16_vnni_dot_ptrs(const nca::linalg::MXINT8Tensor** __restrict weights, 
 
 void mx_quantize_x(const float* __restrict in, nca::linalg::MXUINT8Tensor* __restrict out);
 void mx_fused_silu_quantize_x(const float* __restrict in, nca::linalg::MXUINT8Tensor* __restrict out);
+float mx_compute_activation_norm(const nca::linalg::MXUINT8Tensor& x_q);
+void mx_update_gaussian_moment(nca::linalg::MXINT8Tensor& w, const nca::linalg::MXUINT8Tensor& x_q, float error, float lr, float precomputed_norm);
 
 } // namespace nca::simd::avx512

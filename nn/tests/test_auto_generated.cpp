@@ -2,6 +2,7 @@
 #include "tests/autotest.hpp"
 #include "core/activations.hpp"
 #include "core/execution/fused_pipeline.hpp"
+#include "core/execution/importance.hpp"
 #include "core/execution/latent_adapter.hpp"
 #include "core/execution/multimodal_engine.hpp"
 #include "core/execution/route_planner.hpp"
@@ -10,6 +11,7 @@
 #include "core/layers/mlp.hpp"
 #include "core/layers/sla.hpp"
 #include "core/layers/ssm.hpp"
+#include "core/linalg/hashed_router.hpp"
 #include "core/linalg/mx_linear.hpp"
 #include "core/log.hpp"
 #include "core/normalization.hpp"
@@ -21,6 +23,9 @@
 #include "core/simd/cache_policy.hpp"
 #include "core/simd/dispatch.hpp"
 #include "core/simd/memory.hpp"
+#include "core/spectral/fwht.hpp"
+#include "core/spectral/kronecker_rls.hpp"
+#include "core/spectral/spectral_logic.hpp"
 #include "core/vision/scanner.hpp"
 #include "core/vision/spectral_pruner.hpp"
 
@@ -39,12 +44,18 @@ int main() {
     nca::testing::run_benchmark("nca::linalg::mx_quantize_w", &nca::linalg::mx_quantize_w);
     nca::testing::run_benchmark("nca::linalg::mx_quantize_x", &nca::linalg::mx_quantize_x);
     nca::testing::run_benchmark("nca::linalg::mx_fused_silu_quantize_x", &nca::linalg::mx_fused_silu_quantize_x);
+    nca::testing::run_benchmark("nca::linalg::mx_update_gaussian_moment", &nca::linalg::mx_update_gaussian_moment);
+    nca::testing::run_benchmark("nca::linalg::mx_compute_activation_norm", &nca::linalg::mx_compute_activation_norm);
     nca::testing::run_benchmark("nca::linalg::mx_dot", &nca::linalg::mx_dot);
     nca::testing::run_benchmark("nca::linalg::mx_dual_dot", &nca::linalg::mx_dual_dot);
     nca::testing::run_benchmark("nca::linalg::mx_quad_dot", &nca::linalg::mx_quad_dot);
     nca::testing::run_benchmark("nca::linalg::mx_rank16_dot", &nca::linalg::mx_rank16_dot);
+    nca::testing::run_benchmark("nca::linalg::mx_rank16_dot_ptrs", &nca::linalg::mx_rank16_dot_ptrs);
     nca::testing::run_benchmark("nca::linalg::mx_gemv", &nca::linalg::mx_gemv);
     nca::testing::run_benchmark("nca::math::rmsnorm", &nca::math::rmsnorm);
+    nca::testing::run_benchmark("nca::spectral::fwht_inplace", &nca::spectral::fwht_inplace);
+    nca::testing::run_benchmark("nca::spectral::ifwht_inplace", &nca::spectral::ifwht_inplace);
+    nca::testing::run_benchmark("nca::spectral::ifwht_no_scale", &nca::spectral::ifwht_no_scale);
     nca::testing::run_benchmark("nca::vision::dwconv2d_3x3", &nca::vision::dwconv2d_3x3);
     nca::testing::run_benchmark("nca::vision::ssm2d_scan", &nca::vision::ssm2d_scan);
     return 0;

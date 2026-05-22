@@ -40,7 +40,7 @@ ImportanceDecision ImportanceClassifier::classify(
     // We only learn if it's a strong, novel fact.
     d.should_learn = (d.saliency > 0.1f && d.novelty > 0.5f);
     
-    d.act_cycles = d.is_fact ? 64 : 1;
+    d.act_cycles = d.is_fact ? 2 : 1;
 
     return d;
 }

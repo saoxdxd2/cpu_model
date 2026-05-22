@@ -104,67 +104,84 @@ void MultimodalEngine::step(const float* text_in, const float* image_in, float* 
     std::copy(h_glr_.get(), h_glr_.get() + D, glr_snap);
 
     float accumulated_h = 0.0f;
-    int cycles = 0;
     nca::layers::HaltingState h_state;
     nca::linalg::MXUINT8Tensor x_q(D / 32);
 
-    // ── 3. RECURSIVE RECALL (ACT) ──
-    while (accumulated_h < nca::config::ACT_HALT_THRESHOLD && cycles < d.act_cycles) {
-        
-        if (d.is_fact) {
-            // Learn from GROUND truth, Apply to recurrent state
-            spectral_logic_step(state_.get(), fact_ground, *spectral_rls_, D, d.should_learn);
-        }
+    // ── 3. TINY RECURSIVE MODELING: H-CYCLES AND L-CYCLES ──
+    // H-Cycles (Outer Loop): Answer Revision & Halting evaluation
+    // L-Cycles (Inner Loop): Deep latent state refinement (Thought process)
+    
+    const int L_CYCLES = d.is_fact ? 2 : 1; // Dynamic depth for internal thought
+    int h_cycles_executed = 0;
 
-        alignas(64) float x_spec[2048];
-        std::copy(state_.get(), state_.get() + D, x_spec);
-        nca::spectral::fwht_inplace({x_spec, D});
+    while (accumulated_h < nca::config::ACT_HALT_THRESHOLD && h_cycles_executed < d.act_cycles) {
         
-        std::vector<size_t> active_indices;
-        router_->route(x_spec, active_indices);
-        nca::linalg::mx_quantize_x(x_spec, x_q);
-        float x_norm = nca::linalg::mx_compute_activation_norm(x_q);
+        bool execute_learning = d.should_learn && (h_cycles_executed == 0);
 
-        if (active_indices.size() >= 16) {
-            const nca::linalg::MXINT8Tensor* gate_ptrs[16];
-            const nca::linalg::MXINT8Tensor* up_ptrs[16];
-            for(int i=0; i<16; ++i) {
-                size_t id = active_indices[i] % nca::config::N_MICRO_EXPERTS;
-                gate_ptrs[i] = &expert_pool_gate_[id];
-                up_ptrs[i] = &expert_pool_up_[id];
+        // ── L-CYCLES (Inner Thought Loop) ──
+        alignas(64) float z_latent[2048];
+        std::copy(state_.get(), state_.get() + D, z_latent);
+
+        for (int l = 0; l < L_CYCLES; ++l) {
+            if (d.is_fact) {
+                // Spectral refinement of thought
+                spectral_logic_step(z_latent, fact_ground, *spectral_rls_, D, execute_learning && (l == 0));
             }
 
-            alignas(64) float g[16], u[16];
-            nca::linalg::mx_rank16_dot_ptrs(gate_ptrs, x_q, g);
-            nca::linalg::mx_rank16_dot_ptrs(up_ptrs, x_q, u);
+            nca::spectral::fwht_inplace({z_latent, D});
+            
+            std::vector<size_t> active_indices;
+            router_->route(z_latent, active_indices);
+            nca::linalg::mx_quantize_x(z_latent, x_q);
+            float x_norm = nca::linalg::mx_compute_activation_norm(x_q);
 
-            float out_scale = d.is_fact ? 10.0f : 0.01f;
-            for(int i=0; i<16; ++i) {
-                float val = (g[i] / (1.0f + std::exp(-g[i]))) * u[i] * out_scale;
-                size_t b_start = (active_indices[i] * 16) % D;
-                for(int j=0; j<16; ++j) {
-                    size_t idx = (b_start + j);
-                    x_spec[idx] += val; 
-                    if (d.should_learn) {
-                        // Ground expert update in the FACT, not the transient state
-                        nca::linalg::mx_update_gaussian_moment(const_cast<nca::linalg::MXINT8Tensor&>(*gate_ptrs[i]), x_q, fact_ground[idx] - x_spec[idx], 10.0f, x_norm);
-                        nca::linalg::mx_update_gaussian_moment(const_cast<nca::linalg::MXINT8Tensor&>(*up_ptrs[i]), x_q, fact_ground[idx] - x_spec[idx], 10.0f, x_norm);
+            if (active_indices.size() >= 16) {
+                const nca::linalg::MXINT8Tensor* gate_ptrs[16];
+                const nca::linalg::MXINT8Tensor* up_ptrs[16];
+                for(int i=0; i<16; ++i) {
+                    size_t id = active_indices[i] % nca::config::N_MICRO_EXPERTS;
+                    gate_ptrs[i] = &expert_pool_gate_[id];
+                    up_ptrs[i] = &expert_pool_up_[id];
+                }
+
+                alignas(64) float g[16], u[16];
+                nca::linalg::mx_rank16_dot_ptrs(gate_ptrs, x_q, g);
+                nca::linalg::mx_rank16_dot_ptrs(up_ptrs, x_q, u);
+
+                float out_scale = d.is_fact ? 10.0f : 0.01f;
+                for(int i=0; i<16; ++i) {
+                    float val = (g[i] / (1.0f + std::exp(-g[i]))) * u[i] * out_scale;
+                    size_t b_start = (active_indices[i] * 16) % D;
+                    for(int j=0; j<16; ++j) {
+                        size_t idx = (b_start + j);
+                        z_latent[idx] += val; 
+                        if (execute_learning && l == 0) {
+                            // Ground expert update in the FACT (only once per token)
+                            nca::linalg::mx_update_gaussian_moment(const_cast<nca::linalg::MXINT8Tensor&>(*gate_ptrs[i]), x_q, fact_ground[idx] - z_latent[idx], 10.0f, x_norm);
+                            nca::linalg::mx_update_gaussian_moment(const_cast<nca::linalg::MXINT8Tensor&>(*up_ptrs[i]), x_q, fact_ground[idx] - z_latent[idx], 10.0f, x_norm);
+                        }
                     }
                 }
             }
-        }
-        nca::spectral::ifwht_no_scale({x_spec, D});
-        for(size_t i=0; i<D; ++i) {
-            if(!std::isfinite(x_spec[i])) x_spec[i] = 0.0f;
-            state_[i] = std::clamp(x_spec[i], -10.0f, 10.0f);
-        }
+            nca::spectral::ifwht_no_scale({z_latent, D});
+            for(size_t i=0; i<D; ++i) {
+                if(!std::isfinite(z_latent[i])) z_latent[i] = 0.0f;
+                z_latent[i] = std::clamp(z_latent[i], -10.0f, 10.0f);
+            }
+        } // End L-Cycle
+
+        // ── H-CYCLE (Outer Answer Revision) ──
+        // Update the main state with the refined thought
+        std::copy(z_latent, z_latent + D, state_.get());
 
         nca::linalg::mx_quantize_x(state_.get(), x_q);
         bool halt = false;
         accumulated_h += nca::layers::halting_step(x_q, W_halt_, 0.0f, h_state, halt);
         if(halt && !d.is_fact) break; 
-        cycles++;
+        
+        h_cycles_executed++;
     }
+
     
     std::copy(state_.get(), state_.get() + D, prediction_buf_.get());
 

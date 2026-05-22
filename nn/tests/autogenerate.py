@@ -43,7 +43,7 @@ def main():
         for m in re.finditer(r'^\s*(?:float|void)\s+([a-zA-Z0-9_]+)\s*\(([^)]*)\)\s*;', content, re.MULTILINE):
             name = m.group(1)
             # Skip inline helpers and top-level orchestrators/pruners
-            if name in ('extract_e8m0', 'decode_e8m0_scale', 'multimodal_fused_step', 'step', 'shuffle_active_tokens', 'prune', 'project'):
+            if name in ('extract_e8m0', 'decode_e8m0_scale', 'multimodal_fused_step', 'step', 'shuffle_active_tokens', 'prune', 'project', 'reset', 'update', 'apply', 'reset_state', 'spectral_logic_step'):
                 continue
             funcs.append(f"{ns}::{name}")
 

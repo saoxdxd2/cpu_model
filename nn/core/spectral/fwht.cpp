@@ -6,18 +6,23 @@
 #include "core/spectral/fwht.hpp"
 #include <immintrin.h>
 #include <stdexcept>
-#include <cmath>
 
 namespace nca::spectral {
 
-// ── AVX-512 HADAMARD BUTTERFLY ──────────────────────────────────────────────
-// Processes 16 butterflies in parallel.
-// a = a + b, b = a - b
+#if defined(__AVX512F__) || defined(_MSC_VER)
 inline void butterfly_v16(float* __restrict a, float* __restrict b) {
     __m512 vA = _mm512_loadu_ps(a);
     __m512 vB = _mm512_loadu_ps(b);
     _mm512_storeu_ps(a, _mm512_add_ps(vA, vB));
     _mm512_storeu_ps(b, _mm512_sub_ps(vA, vB));
+}
+#endif
+
+inline void butterfly_v8(float* __restrict a, float* __restrict b) {
+    __m256 vA = _mm256_loadu_ps(a);
+    __m256 vB = _mm256_loadu_ps(b);
+    _mm256_storeu_ps(a, _mm256_add_ps(vA, vB));
+    _mm256_storeu_ps(b, _mm256_sub_ps(vA, vB));
 }
 
 void fwht_inplace(std::span<float> data) {
@@ -26,16 +31,22 @@ void fwht_inplace(std::span<float> data) {
 
     float* p = data.data();
 
-    // Standard iterative FWHT (Butterfly Network)
+    // ── AVX2 BASELINE: Branchless and Scaled ────────────────────────────────
     for (size_t len = 1; len < n; len <<= 1) {
         for (size_t i = 0; i < n; i += (len << 1)) {
-            // If length is at least 16, use AVX-512
+#if defined(__AVX512F__) || defined(_MSC_VER)
             if (len >= 16) {
                 for (size_t j = 0; j < len; j += 16) {
                     butterfly_v16(p + i + j, p + i + len + j);
                 }
+                continue;
+            }
+#endif
+            if (len >= 8) {
+                for (size_t j = 0; j < len; j += 8) {
+                    butterfly_v8(p + i + j, p + i + len + j);
+                }
             } else {
-                // Scalar fallback for small butterflies
                 for (size_t j = 0; j < len; ++j) {
                     float a = p[i + j];
                     float b = p[i + len + j];
@@ -51,12 +62,18 @@ void ifwht_inplace(std::span<float> data) {
     const size_t n = data.size();
     fwht_inplace(data);
     
-    // Scale by 1/N
     float inv_n = 1.0f / (float)n;
+#if defined(__AVX512F__) || defined(_MSC_VER)
     __m512 v_inv = _mm512_set1_ps(inv_n);
     for (size_t i = 0; i < n; i += 16) {
         _mm512_storeu_ps(data.data() + i, _mm512_mul_ps(_mm512_loadu_ps(data.data() + i), v_inv));
     }
+#else
+    __m256 v_inv = _mm256_set1_ps(inv_n);
+    for (size_t i = 0; i < n; i += 8) {
+        _mm256_storeu_ps(data.data() + i, _mm256_mul_ps(_mm256_loadu_ps(data.data() + i), v_inv));
+    }
+#endif
 }
 
 void ifwht_no_scale(std::span<float> data) {
@@ -64,3 +81,4 @@ void ifwht_no_scale(std::span<float> data) {
 }
 
 } // namespace nca::spectral
+

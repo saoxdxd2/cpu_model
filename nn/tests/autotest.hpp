@@ -123,6 +123,18 @@ template <> struct ArgGen<const nca::linalg::MXINT8Tensor*> {
     uint64_t hash() { uint64_t h = 0; for(auto& t : ts) h ^= hash_bytes(t.data, t.num_blocks*32); return h; }
 };
 
+template <> struct ArgGen<const nca::linalg::MXINT8Tensor**> {
+    std::vector<nca::linalg::MXINT8Tensor> ts;
+    std::vector<const nca::linalg::MXINT8Tensor*> ptrs;
+    ArgGen() {
+        for(int i=0; i<16; ++i) ts.emplace_back(D/32);
+        for(int i=0; i<16; ++i) ptrs.push_back(&ts[i]);
+    }
+    void init(int seed) { for(auto& t : ts) { if(t.data) std::memset(t.data, seed % 127, t.num_blocks*32); if(t.scales) std::memset(t.scales, 1, t.num_blocks); if(t.w_sums) std::memset(t.w_sums, 0, t.num_blocks*4); } }
+    const nca::linalg::MXINT8Tensor** get() { return ptrs.data(); }
+    uint64_t hash() { uint64_t h = 0; for(auto& t : ts) h ^= hash_bytes(t.data, t.num_blocks*32); return h; }
+};
+
 template <> struct ArgGen<size_t> {
     void init(int) {}
     size_t get() { return D; }

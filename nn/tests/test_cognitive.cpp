@@ -16,7 +16,10 @@
 float calculate_cosine_similarity(const float* a, const float* b, size_t n) {
     double dot = 0, norm_a = 0, norm_b = 0;
     for (size_t i = 0; i < n; ++i) {
-        if (!std::isfinite(a[i])) return 0.0f;
+        if (!std::isfinite(a[i])) {
+            std::cout << " [WARN] NaN detected at index " << i << "\n";
+            return 0.0f;
+        }
         dot += a[i] * b[i];
         norm_a += a[i] * a[i];
         norm_b += b[i] * b[i];

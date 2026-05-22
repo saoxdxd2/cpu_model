@@ -44,49 +44,67 @@ float vnni_dot(const nca::linalg::MXINT8Tensor* __restrict w, const nca::linalg:
     return _mm512_reduce_add_ps(_mm512_add_ps(_mm512_add_ps(acc0, acc1), _mm512_add_ps(acc2, acc3)));
 }
 
-// ── RANK-16 FUSION ──────────────────────────────────────────────────────────
-void rank16_vnni_dot(const nca::linalg::MXINT8Tensor* __restrict ws, const nca::linalg::MXUINT8Tensor* __restrict x, float* __restrict out) {
+// ── RANK-16 FUSION (Absolute Saturation) ───────────────────────────────────
+void rank16_vnni_dot(const nca::linalg::MXINT8Tensor* ws, const nca::linalg::MXUINT8Tensor* x, float* out) {
     const size_t num_blocks = x->num_blocks;
-    __m512 v_acc_all[16];
-    for(int i=0; i<16; ++i) v_acc_all[i] = _mm512_setzero_ps();
+    __m512 v_acc = _mm512_setzero_ps();
+    
     for (size_t b = 0; b < num_blocks; ++b) [[likely]] {
         __m256i vX = _mm256_loadu_si256((const __m256i*)&x->data[b * 32]);
         uint8_t ex = x->scales[b];
+        
         alignas(64) uint32_t ews[16];
-        for(int i=0; i<16; ++i) ews[i] = (uint32_t)ws[i].scales[b];
-        __m512 vS = scale_fusion_ps(_mm512_load_si512(ews), ex);
-        alignas(64) float s_buf[16]; _mm512_store_ps(s_buf, vS);
-
+        alignas(64) int32_t dots[16];
+        alignas(64) int32_t w_sums[16];
+        
         for (int i = 0; i < 16; ++i) {
+            ews[i] = (uint32_t)ws[i].scales[b];
+            w_sums[i] = ws[i].w_sums[b];
+            
             __m256i i_acc = _mm256_dpbusd_epi32(_mm256_setzero_si256(), vX, _mm256_loadu_si256((const __m256i*)&ws[i].data[b*32]));
             __m128i c = _mm_add_epi32(_mm256_castsi256_si128(i_acc), _mm256_extracti128_si256(i_acc, 1));
             c = _mm_add_epi32(c, _mm_srli_si128(c, 8)); c = _mm_add_epi32(c, _mm_srli_si128(c, 4));
-            v_acc_all[i] = _mm512_fmadd_ps(_mm512_set1_ps((float)_mm_cvtsi128_si32(c) - 128.f * ws[i].w_sums[b]), _mm512_set1_ps(s_buf[i]), v_acc_all[i]);
+            dots[i] = _mm_cvtsi128_si32(c);
         }
+        
+        __m512 vS = scale_fusion_ps(_mm512_load_si512(ews), ex);
+        __m512 vH = _mm512_sub_ps(_mm512_cvtepi32_ps(_mm512_load_si512(dots)), 
+                                  _mm512_mul_ps(_mm512_set1_ps(128.0f), _mm512_cvtepi32_ps(_mm512_load_si512(w_sums))));
+        
+        v_acc = _mm512_fmadd_ps(vH, vS, v_acc);
     }
-    for(int i=0; i<16; ++i) out[i] = _mm512_reduce_add_ps(v_acc_all[i]);
+    _mm512_storeu_ps(out, v_acc);
 }
 
-void rank16_vnni_dot_ptrs(const nca::linalg::MXINT8Tensor** __restrict ws, const nca::linalg::MXUINT8Tensor* __restrict x, float* __restrict out) {
+void rank16_vnni_dot_ptrs(const nca::linalg::MXINT8Tensor** ws, const nca::linalg::MXUINT8Tensor* x, float* out) {
     const size_t num_blocks = x->num_blocks;
-    __m512 v_acc_all[16];
-    for(int i=0; i<16; ++i) v_acc_all[i] = _mm512_setzero_ps();
+    __m512 v_acc = _mm512_setzero_ps();
+    
     for (size_t b = 0; b < num_blocks; ++b) [[likely]] {
         __m256i vX = _mm256_loadu_si256((const __m256i*)&x->data[b * 32]);
         uint8_t ex = x->scales[b];
+        
         alignas(64) uint32_t ews[16];
-        for(int i=0; i<16; ++i) ews[i] = (uint32_t)ws[i]->scales[b];
-        __m512 vS = scale_fusion_ps(_mm512_load_si512(ews), ex);
-        alignas(64) float s_buf[16]; _mm512_store_ps(s_buf, vS);
-
+        alignas(64) int32_t dots[16];
+        alignas(64) int32_t w_sums[16];
+        
         for (int i = 0; i < 16; ++i) {
+            ews[i] = (uint32_t)ws[i]->scales[b];
+            w_sums[i] = ws[i]->w_sums[b];
+            
             __m256i i_acc = _mm256_dpbusd_epi32(_mm256_setzero_si256(), vX, _mm256_loadu_si256((const __m256i*)&ws[i]->data[b*32]));
             __m128i c = _mm_add_epi32(_mm256_castsi256_si128(i_acc), _mm256_extracti128_si256(i_acc, 1));
             c = _mm_add_epi32(c, _mm_srli_si128(c, 8)); c = _mm_add_epi32(c, _mm_srli_si128(c, 4));
-            v_acc_all[i] = _mm512_fmadd_ps(_mm512_set1_ps((float)_mm_cvtsi128_si32(c) - 128.f * ws[i]->w_sums[b]), _mm512_set1_ps(s_buf[i]), v_acc_all[i]);
+            dots[i] = _mm_cvtsi128_si32(c);
         }
+        
+        __m512 vS = scale_fusion_ps(_mm512_load_si512(ews), ex);
+        __m512 vH = _mm512_sub_ps(_mm512_cvtepi32_ps(_mm512_load_si512(dots)), 
+                                  _mm512_mul_ps(_mm512_set1_ps(128.0f), _mm512_cvtepi32_ps(_mm512_load_si512(w_sums))));
+        
+        v_acc = _mm512_fmadd_ps(vH, vS, v_acc);
     }
-    for(int i=0; i<16; ++i) out[i] = _mm512_reduce_add_ps(v_acc_all[i]);
+    _mm512_storeu_ps(out, v_acc);
 }
 
 void mx_quantize_x(const float* __restrict in, nca::linalg::MXUINT8Tensor* __restrict out) {
@@ -114,6 +132,67 @@ void mx_fused_silu_quantize_x(const float* __restrict in, nca::linalg::MXUINT8Te
             _mm_storeu_si128((__m128i*)&out->data[b*32+off], _mm512_cvtepi32_epi8(vi));
         };
         q(v0, 0); q(v1, 16);
+    }
+}
+
+float mx_compute_activation_norm(const nca::linalg::MXUINT8Tensor& x_q) {
+    __m512 v_sum_sq = _mm512_setzero_ps();
+    for (size_t b = 0; b < x_q.num_blocks; ++b) {
+        __m512 v_scale = _mm512_set1_ps(nca::linalg::decode_e8m0_scale(x_q.scales[b]));
+        __m256i v_data = _mm256_loadu_si256((const __m256i*)&x_q.data[b * 32]);
+        
+        __m512i v_i32_lo = _mm512_cvtepu8_epi32(_mm256_castsi256_si128(v_data));
+        __m512i v_i32_hi = _mm512_cvtepu8_epi32(_mm256_extracti128_si256(v_data, 1));
+        
+        __m512 v_f32_lo = _mm512_mul_ps(_mm512_cvtepi32_ps(_mm512_sub_epi32(v_i32_lo, _mm512_set1_epi32(128))), v_scale);
+        __m512 v_f32_hi = _mm512_mul_ps(_mm512_cvtepi32_ps(_mm512_sub_epi32(v_i32_hi, _mm512_set1_epi32(128))), v_scale);
+        
+        v_sum_sq = _mm512_fmadd_ps(v_f32_lo, v_f32_lo, v_sum_sq);
+        v_sum_sq = _mm512_fmadd_ps(v_f32_hi, v_f32_hi, v_sum_sq);
+    }
+    return _mm512_reduce_add_ps(v_sum_sq) + 1e-4f;
+}
+
+void mx_update_gaussian_moment(
+    nca::linalg::MXINT8Tensor& w, 
+    const nca::linalg::MXUINT8Tensor& x_q, 
+    float error, 
+    float lr, 
+    float precomputed_norm
+) {
+    const size_t bpr = x_q.num_blocks;
+    float norm = (precomputed_norm > 0) ? precomputed_norm : nca::simd::avx512::mx_compute_activation_norm(x_q);
+    
+    float current_total_w = 0;
+    for (size_t b = 0; b < bpr; ++b) current_total_w += nca::linalg::decode_e8m0_scale(w.scales[b]);
+    if (current_total_w > 5.0f && lr > 0) lr *= 0.05f; 
+
+    __m512 v_lr_err_norm = _mm512_set1_ps((lr * error) / norm);
+
+    for (size_t b = 0; b < bpr; ++b) {
+        float sw = nca::linalg::decode_e8m0_scale(w.scales[b]);
+        __m512 v_sw = _mm512_set1_ps(sw);
+        __m512 v_sx = _mm512_set1_ps(nca::linalg::decode_e8m0_scale(x_q.scales[b]));
+        __m512 v_grad_scale = _mm512_mul_ps(v_lr_err_norm, v_sx);
+        __m512 v_inv_sw = _mm512_set1_ps(1.0f / (sw + 1e-6f));
+
+        __m256i v_w_data = _mm256_loadu_si256((const __m256i*)&w.data[b * 32]);
+        __m256i v_x_data = _mm256_loadu_si256((const __m256i*)&x_q.data[b * 32]);
+
+        auto process_half = [&](__m128i w128, __m128i x128, int offset) {
+            __m512i v_wi = _mm512_cvtepi8_epi32(w128);
+            __m512i v_xi = _mm512_sub_epi32(_mm512_cvtepu8_epi32(x128), _mm512_set1_epi32(128));
+            __m512 v_wf = _mm512_mul_ps(_mm512_cvtepi32_ps(v_wi), v_sw);
+            __m512 v_new_w = _mm512_fmadd_ps(v_grad_scale, _mm512_cvtepi32_ps(v_xi), v_wf);
+            
+            __m512i qi = _mm512_cvtps_epi32(_mm512_roundscale_ps(_mm512_mul_ps(v_new_w, v_inv_sw), _MM_FROUND_TO_NEAREST_INT |_MM_FROUND_NO_EXC));
+            qi = _mm512_min_epi32(_mm512_max_epi32(qi, _mm512_set1_epi32(-127)), _mm512_set1_epi32(127));
+            _mm_storeu_si128((__m128i*)&w.data[b*32 + offset], _mm512_cvtepi32_epi8(qi));
+            return _mm512_reduce_add_epi32(qi);
+        };
+
+        w.w_sums[b] = process_half(_mm256_castsi256_si128(v_w_data), _mm256_castsi256_si128(v_x_data), 0) + 
+                      process_half(_mm256_extracti128_si256(v_w_data, 1), _mm256_extracti128_si256(v_x_data, 1), 16);
     }
 }
 

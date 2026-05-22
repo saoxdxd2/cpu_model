@@ -54,3 +54,15 @@ add_executable(test_cognitive ${CMAKE_CURRENT_SOURCE_DIR}/test_cognitive.cpp)
 target_include_directories(test_cognitive PRIVATE ${CMAKE_SOURCE_DIR})
 target_link_libraries(test_cognitive PRIVATE nca_core "${TORCH_LIBRARIES}")
 target_compile_options(test_cognitive PRIVATE /arch:AVX512 /O2 /fp:fast)
+
+# ── Throughput & Speed Projection ─────────────────────────────────────────────
+add_executable(test_speed ${CMAKE_CURRENT_SOURCE_DIR}/test_speed.cpp)
+target_include_directories(test_speed PRIVATE ${CMAKE_SOURCE_DIR})
+target_link_libraries(test_speed PRIVATE nca_core "${TORCH_LIBRARIES}")
+target_compile_options(test_speed PRIVATE /arch:AVX512 /O2 /fp:fast)
+
+# ── External Training Bridge Test ─────────────────────────────────────────────
+add_executable(test_torch_integration ${CMAKE_CURRENT_SOURCE_DIR}/test_torch_integration.cpp)
+target_include_directories(test_torch_integration PRIVATE ${CMAKE_SOURCE_DIR})
+target_link_libraries(test_torch_integration PRIVATE nca_core "${TORCH_LIBRARIES}")
+target_compile_options(test_torch_integration PRIVATE /arch:AVX512 /O2 /fp:fast)
