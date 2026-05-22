@@ -194,4 +194,39 @@ void MultimodalEngine::step(const float* text_in, const float* image_in, float* 
     }
 }
 
+void MultimodalEngine::update_from_trajectory(size_t count, size_t obs_dim, size_t act_dim, 
+                                              const float* states, const float* actions, const float* advantages) {
+    const size_t D = nca::config::D_MODEL;
+    
+    for (size_t t = 0; t < count; ++t) {
+        const float* state = states + t * obs_dim;
+        const float* action = actions + t * act_dim;
+        float adv = advantages[t];
+
+        // 1. Evaluate novelty using the engine's classifier
+        ImportanceDecision d = classifier_.classify(state, state_.get(), prediction_buf_.get(), D);
+        
+        // 2. If it's a novel fact or requires learning, connect RL Advantage to NN updates
+        if (d.should_learn) {
+            nca::linalg::MXUINT8Tensor x_q(D / 32);
+            nca::linalg::mx_quantize_x(state, x_q);
+            float x_norm = nca::linalg::mx_compute_activation_norm(x_q);
+
+            std::vector<size_t> active_indices;
+            router_->route(state, active_indices);
+
+            // Backpropagate the advantage directly into the active micro-experts
+            if (active_indices.size() >= 16) {
+                for(int i=0; i<16; ++i) {
+                    size_t id = active_indices[i] % nca::config::N_MICRO_EXPERTS;
+                    
+                    // Gaussian Moment Update driven by GAE!
+                    nca::linalg::mx_update_gaussian_moment(expert_pool_gate_[id], x_q, adv, 1.0f, x_norm);
+                    nca::linalg::mx_update_gaussian_moment(expert_pool_up_[id], x_q, adv, 1.0f, x_norm);
+                }
+            }
+        }
+    }
+}
+
 } // namespace nca::execution

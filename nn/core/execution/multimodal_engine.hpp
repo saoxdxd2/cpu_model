@@ -23,6 +23,10 @@ public:
     // Executes the COMPLETE custom neural network logic:
     // Vision (Scan+Prune) -> Bridge (Adapter) -> Recursive Logic (ACT Depth)
     void step(const float* text_in, const float* image_in, float* out);
+    
+    // The RL Trajectory Update (connects Advantage to Gaussian Moments)
+    void update_from_trajectory(size_t count, size_t obs_dim, size_t act_dim, 
+                                const float* states, const float* actions, const float* advantages);
 
     // Clears the persistent state and RLS factors (Memory Wipe)
     void reset_state();
