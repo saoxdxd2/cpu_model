@@ -61,6 +61,25 @@ void AetherServer::broadcast(const std::string& json_payload) {
 
 void AetherServer::update() {
     handle_new_connections();
+    poll_clients();
+}
+
+void AetherServer::poll_clients() {
+    char buffer[1024];
+    for (auto s : clients_) {
+        int res = recv(s, buffer, sizeof(buffer) - 1, 0);
+        if (res > 0) {
+            buffer[res] = '\0';
+            command_queue_.push_back(std::string(buffer));
+        }
+    }
+}
+
+bool AetherServer::get_next_command(std::string& cmd_out) {
+    if (command_queue_.empty()) return false;
+    cmd_out = command_queue_.front();
+    command_queue_.erase(command_queue_.begin());
+    return true;
 }
 
 void AetherServer::handle_new_connections() {

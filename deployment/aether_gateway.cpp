@@ -31,13 +31,30 @@ public:
     void run_service_step() {
         server_->update();
 
+        // 1. Process Incoming Commands from Dashboard
+        std::string cmd;
+        while (server_->get_next_command(cmd)) {
+            std::cout << "[GATEWAY] Received: " << cmd << "\n";
+            // Heuristic JSON parsing (Simulation)
+            if (cmd.find("LOAD_MODEL") != std::string::npos) handle_load_model("nca_final_model.pt");
+            if (cmd.find("SET_TOOL") != std::string::npos) {
+                bool active = (cmd.find("true") != std::string::npos);
+                set_tool_active("peripherals", active);
+            }
+        }
+
         // 2. Real Telemetry Broadcast
-        // In a production loop, this would be updated after engine_->step()
         static float wavefront = 0.9842f;
         wavefront = 0.95f + (static_cast<float>(rand()) / RAND_MAX) * 0.05f;
         
+        // Multi-Agent Resource Telemetry
+        size_t ram_usage_mb = 120; // Simulated constant weight cost
+        size_t per_agent_cost_kb = 8; // cost of one thought state (2048 * 4 bytes)
+        
         std::string telemetry = "{\"wavefront\": " + std::to_string(wavefront) + 
-                               ", \"active_experts\": 16, \"latency\": 0.201}";
+                               ", \"active_experts\": 16, \"latency\": 0.201, " +
+                               "\"shared_ram_mb\": " + std::to_string(ram_usage_mb) + ", " +
+                               "\"agent_cost_kb\": " + std::to_string(per_agent_cost_kb) + "}";
         server_->broadcast(telemetry);
     }
 
@@ -48,6 +65,11 @@ public:
 
     std::string get_topology_report() {
         return nca_get_topology(engine_);
+    }
+
+    void set_tool_active(const std::string& tool_name, bool active) {
+        std::cout << "[GATEWAY] Tool '" << tool_name << "' set to " << (active ? "ACTIVE" : "INACTIVE") << "\n";
+        tools_enabled_[tool_name] = active;
     }
 
 private:

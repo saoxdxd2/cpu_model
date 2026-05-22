@@ -89,14 +89,28 @@ void rank16_vnni_dot_ptrs(const nca::linalg::MXINT8Tensor** ws, const nca::linal
         alignas(64) int32_t dots[16];
         alignas(64) int32_t w_sums[16];
         
-        for (int i = 0; i < 16; ++i) {
-            ews[i] = (uint32_t)ws[i]->scales[b];
-            w_sums[i] = ws[i]->w_sums[b];
+        // [OPTIMIZATION] Unroll expert loop to 2-way to saturate L1 ports
+        for (int i = 0; i < 16; i += 2) {
+            __m256i vW0 = _mm256_loadu_si256((const __m256i*)&ws[i]->data[b*32]);
+            __m256i vW1 = _mm256_loadu_si256((const __m256i*)&ws[i+1]->data[b*32]);
             
-            __m256i i_acc = _mm256_dpbusd_epi32(_mm256_setzero_si256(), vX, _mm256_loadu_si256((const __m256i*)&ws[i]->data[b*32]));
-            __m128i c = _mm_add_epi32(_mm256_castsi256_si128(i_acc), _mm256_extracti128_si256(i_acc, 1));
-            c = _mm_add_epi32(c, _mm_srli_si128(c, 8)); c = _mm_add_epi32(c, _mm_srli_si128(c, 4));
-            dots[i] = _mm_cvtsi128_si32(c);
+            __m256i i_acc0 = _mm256_dpbusd_epi32(_mm256_setzero_si256(), vX, vW0);
+            __m256i i_acc1 = _mm256_dpbusd_epi32(_mm256_setzero_si256(), vX, vW1);
+            
+            auto reduce = [](auto i_acc) {
+                __m128i c = _mm_add_epi32(_mm256_castsi256_si128(i_acc), _mm256_extracti128_si256(i_acc, 1));
+                c = _mm_add_epi32(c, _mm_srli_si128(c, 8)); c = _mm_add_epi32(c, _mm_srli_si128(c, 4));
+                return _mm_cvtsi128_si32(c);
+            };
+
+            dots[i]   = reduce(i_acc0);
+            dots[i+1] = reduce(i_acc1);
+            
+            ews[i]   = (uint32_t)ws[i]->scales[b];
+            ews[i+1] = (uint32_t)ws[i+1]->scales[b];
+            
+            w_sums[i]   = ws[i]->w_sums[b];
+            w_sums[i+1] = ws[i+1]->w_sums[b];
         }
         
         __m512 vS = scale_fusion_ps(_mm512_load_si512(ews), ex);

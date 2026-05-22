@@ -1,4 +1,5 @@
 #pragma once
+#include "deployment/nca_deploy.h"
 #include <string>
 #include <vector>
 
@@ -9,7 +10,7 @@ namespace nca::deployment {
  * Connects the NCA Silicon Engine to external Media Rooms (Image/Video).
  * This implements the "Creative Mode" described in the roadmap.
  */
-class CreativeBridge {
+class NCA_API CreativeBridge {
 public:
     CreativeBridge();
 

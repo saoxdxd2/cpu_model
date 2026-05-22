@@ -83,5 +83,9 @@ add_executable(test_silicon_writing test_silicon_writing.cpp)
 target_include_directories(test_silicon_writing PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
 target_link_libraries(test_silicon_writing PRIVATE nca_core agentic_env nca_encoding "${TORCH_LIBRARIES}")
 
+add_executable(test_multi_agent_cost test_multi_agent_cost.cpp)
+target_include_directories(test_multi_agent_cost PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
+target_link_libraries(test_multi_agent_cost PRIVATE nca_core agentic_env nca_encoding "${TORCH_LIBRARIES}")
+
 target_compile_options(test_full_response PRIVATE /arch:AVX512 /O2 /fp:fast)
 target_compile_options(test_visual_reasoning PRIVATE /arch:AVX512 /O2 /fp:fast)

@@ -26,7 +26,6 @@ add_library(nca_core STATIC
     # ── Execution ──
     execution/route_planner.cpp
     execution/fused_pipeline.cpp
-    execution/latent_adapter.cpp
     execution/importance.cpp
     execution/multimodal_engine.cpp
 

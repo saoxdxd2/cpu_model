@@ -26,6 +26,9 @@ public:
     // Updates the server state (Must be called in the main loop)
     void update();
 
+    // Retrieves the next command from the queue
+    bool get_next_command(std::string& cmd_out);
+
 private:
 #ifdef _WIN32
     SOCKET listen_socket_;
@@ -34,9 +37,11 @@ private:
     int listen_socket_;
     std::vector<int> clients_;
 #endif
+    std::vector<std::string> command_queue_;
 
     void init_socket(int port);
     void handle_new_connections();
+    void poll_clients();
 };
 
 } // namespace nca::deployment

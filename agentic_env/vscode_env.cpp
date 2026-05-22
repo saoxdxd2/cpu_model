@@ -14,7 +14,10 @@ void VSCodeEnv::reset(float* obs_out) {
     active_files_.clear();
     for (const auto& entry : std::filesystem::recursive_directory_iterator(root_)) {
         if (entry.is_regular_file() && active_files_.size() < 10) {
-            active_files_.push_back(entry.path().string());
+            std::string ext = entry.path().extension().string();
+            if (ext == ".ts" || ext == ".cpp" || ext == ".hpp") {
+                active_files_.push_back(entry.path().string());
+            }
         }
     }
     cursor_pos_ = 0;
@@ -114,27 +117,42 @@ void VSCodeEnv::render_vision(float* vision_out) {
 }
 
 void VSCodeEnv::stream_code(float* alphabet_out) {
-    // Streams the raw alphabet primitives from the current cursor
-    // For now, simulated as constant signal
-    for(int i=0; i<800; ++i) alphabet_out[i] = 0.5f;
+    if (active_files_.empty()) return;
+    
+    // Target the 'Silicon-Hot' file
+    std::string path = active_files_[0];
+    std::ifstream in(path, std::ios::binary);
+    if (!in.is_open()) return;
+
+    in.seekg(cursor_pos_ % 10000); 
+    char buffer[800];
+    in.read(buffer, sizeof(buffer));
+    std::streamsize read = in.gcount();
+
+    for (std::streamsize i = 0; i < read; ++i) {
+        alphabet_out[i] = static_cast<float>(static_cast<uint8_t>(buffer[i])) / 255.0f;
+    }
 }
 
 void VSCodeEnv::apply_code_patch(const std::string& filename, const std::string& patch) {
     std::string full_path = root_ + "/" + filename;
     std::cout << "  [ENV] Applying Silicon Patch to: " << filename << "\n";
     
-    std::ofstream out(full_path, std::ios::app); // Surgical append for now
+    std::ofstream out(full_path, std::ios::app);
     if (out.is_open()) {
         out << "\n" << patch << "\n";
         out.close();
-        compile_status_ = 1.0f; // Assuming the patch fixed the issue
+        compile_status_ = 1.0f; 
     }
 }
 
 void VSCodeEnv::stream_terminal(float* terminal_out) {
-    // Map terminal characters to alphabet-level primitives
-    for (size_t i = 0; i < std::min(terminal_output_.length(), (size_t)800); ++i) {
-        terminal_out[i] = static_cast<float>(terminal_output_[i]) / 255.0f;
+    size_t len = terminal_output_.length();
+    size_t start = (len > 800) ? len - 800 : 0;
+    size_t count = std::min(len - start, (size_t)800);
+
+    for (size_t i = 0; i < count; ++i) {
+        terminal_out[i] = static_cast<float>(static_cast<uint8_t>(terminal_output_[start + i])) / 255.0f;
     }
 }
 

@@ -1,18 +1,13 @@
 // ============================================================================
-// NCA — Multimodal Engine Implementation (v28.0 - Silicon Hardened)
+// NCA — Multimodal Engine Implementation (v30.0 - Grand Silicon Hardened)
 // core/execution/multimodal_engine.cpp
 // ============================================================================
 
 #include "core/execution/multimodal_engine.hpp"
-#include "config/model_config.hpp"
-#include "core/simd/memory.hpp"
-#include "core/layers/glr.hpp"
-#include "core/layers/halting.hpp"
-#include "core/activations.hpp"
-#include "core/spectral/spectral_logic.hpp"
+#include "core/simd/avx512_math.hpp"
 #include "core/spectral/fwht.hpp"
+#include "core/layers/glr.hpp"
 #include <iostream>
-#include <cmath>
 #include <algorithm>
 #include <random>
 #include <cstring>
@@ -20,15 +15,13 @@
 namespace nca::execution {
 
 MultimodalEngine::MultimodalEngine(size_t obs_dim, size_t act_dim, nca::config::EngineConfig engine_cfg) 
-    : engine_cfg_(engine_cfg), obs_dim_(obs_dim), act_dim_(act_dim), encoder_(), vision_encoder_(256, 256) {
+    : engine_cfg_(engine_cfg), obs_dim_(obs_dim), act_dim_(act_dim) {
     
     const size_t D = nca::config::D_MODEL;
     const size_t n_experts = nca::config::N_MICRO_EXPERTS; 
 
-    // [OPTIMIZATION] Pre-allocate all silicon buffers (Hot Path Ready)
-    routing_buffer_.reserve(nca::config::TOP_K_EXPERTS * 2);
-    batch_state_ = nca::simd::make_aligned_unique<float[]>(32 * D); 
-    
+    // [OPTIMIZATION] Pre-allocate all buffers (128 Batch Limit for Zero-Allocation)
+    batch_state_ = nca::simd::make_aligned_unique<float[]>(128 * D); 
     state_ = nca::simd::make_aligned_unique<float[]>(D);
     vision_latent_ = nca::simd::make_aligned_unique<float[]>(D);
     h_glr_ = nca::simd::make_aligned_unique<float[]>(D);
@@ -81,15 +74,13 @@ void MultimodalEngine::reset_state() {
     spectral_rls_->reset();
 }
 
-void MultimodalEngine::step(const float* text_in, const float* image_in, float* out) {
-    // Single step is just a batch-step of size 1, pointing to internal persistent state
-    step_batch(text_in, image_in, out, 1);
-}
-
 void MultimodalEngine::step_batch(const float* text_in, const float* image_in, float* out, size_t batch_size) {
     const size_t D = nca::config::D_MODEL;
     const size_t out_dim = act_dim_ + 1;
     nca::linalg::MXUINT8Tensor x_q(D / 32);
+    
+    // Safety check for pre-allocated buffer
+    if (batch_size > 128) batch_size = 128;
 
     for (size_t b = 0; b < batch_size; ++b) {
         float* env_state = (batch_size == 1) ? state_.get() : (batch_state_.get() + b * D);
@@ -97,28 +88,39 @@ void MultimodalEngine::step_batch(const float* text_in, const float* image_in, f
         const float* im_in = image_in ? (image_in + b * obs_dim_) : nullptr;
         float* e_out = out + b * out_dim;
 
-        // 1. Cross-Modal Fusion
+        // ── 1. CROSS-MODAL FUSION (Silicon-Level Gating) ──
         if (im_in) {
             vision_encoder_.encode_gui(im_in, vision_latent_.get(), D);
-            for (size_t i = 0; i < D; ++i) {
-                env_state[i] += vision_latent_[i] * 0.1f;
-                // [STABILITY] Clamp after each fusion
-                env_state[i] = std::clamp(env_state[i], -10.0f, 10.0f);
+
+            // [HARDENED] Use Text as a Saliency Gate for Vision
+            if (t_in) {
+                for (size_t i = 0; i < D; ++i) {
+                    // Alpha-Vision Cross-Gating
+                    float gate = 1.0f + std::tanh(t_in[i]);
+                    env_state[i] += vision_latent_[i] * gate * 0.1f;
+                    env_state[i] = std::clamp(env_state[i], -10.0f, 10.0f);
+                }
+            } else {
+                for (size_t i = 0; i < D; ++i) {
+                    env_state[i] += vision_latent_[i] * 0.1f;
+                    env_state[i] = std::clamp(env_state[i], -10.0f, 10.0f);
+                }
             }
         }
         if (t_in) {
+            // Base alphabet injection
             for (size_t i = 0; i < D; ++i) {
                 env_state[i] += t_in[i];
                 env_state[i] = std::clamp(env_state[i], -10.0f, 10.0f);
             }
         }
 
-        // 2. Logic Cycles (Gemma-4 Recursive Wavefront)
+        // ── 2. SILICON REASONING (Hardened) ──
         nca::layers::glr_step(env_state, W_glr_alpha_.get(), W_glr_beta_.get(), env_state, D);
         nca::spectral::fwht_inplace({env_state, D});
         
         size_t r_count = 0;
-        router_->route_to_buffer(env_state, routing_buffer_.data(), &r_count);
+        router_->route_to_buffer(env_state, routing_buffer_, &r_count);
         
         nca::linalg::mx_quantize_x(env_state, x_q);
         if (r_count >= 16) {
@@ -133,22 +135,24 @@ void MultimodalEngine::step_batch(const float* text_in, const float* image_in, f
             nca::linalg::mx_rank16_dot_ptrs(gate_ptrs, x_q, g);
             nca::linalg::mx_rank16_dot_ptrs(up_ptrs, x_q, u);
 
+            __m512 vG = _mm512_load_ps(g);
+            __m512 vU = _mm512_load_ps(u);
+            __m512 vRes = _mm512_mul_ps(nca::simd::avx512::silu_ps(vG), vU);
+            _mm512_store_ps(g, vRes);
+
             for(int j=0; j<16; ++j) {
-                float val = (g[j] / (1.0f + std::exp(-g[j]))) * u[j] * 0.1f;
                 size_t b_idx = (routing_buffer_[j] * 16) % D;
-                for(int k=0; k<16; ++k) env_state[b_idx + k] += val;
+                for(int k=0; k<16; ++k) env_state[b_idx + k] += g[j] * 0.1f;
             }
         }
         
         nca::spectral::ifwht_no_scale({env_state, D});
 
-        // 3. Actuation (RMS Output Scaling)
-        float sum_sq = 1e-8f; // Robust epsilon
+        // ── 3. ACTUATION ──
+        float sum_sq = 1e-8f; 
         for(size_t j=0; j<D; ++j) sum_sq += env_state[j] * env_state[j];
         float rms = std::sqrt(sum_sq / D);
         float scale = 1.0f / (rms + 1e-6f);
-        
-        // Final Safety Clamp
         scale = std::clamp(scale, 0.001f, 100.0f);
         
         size_t write_count = std::min(D, out_dim);
@@ -163,19 +167,17 @@ void MultimodalEngine::update_from_trajectory(size_t count, size_t obs_dim, size
     
     for (size_t t = 0; t < count; ++t) {
         const float* state = states + t * obs_dim;
-        // Robust gradient clipping
         float adv = std::clamp(advantages[t], -5.0f, 5.0f); 
 
         nca::linalg::mx_quantize_x(state, x_q);
         float x_norm = nca::linalg::mx_compute_activation_norm(x_q);
 
-        routing_buffer_.clear();
-        router_->route(state, routing_buffer_);
+        size_t r_count = 0;
+        router_->route_to_buffer(state, routing_buffer_, &r_count);
 
-        if (routing_buffer_.size() >= 16) {
+        if (r_count >= 16) {
             for(int i=0; i<16; ++i) {
                 size_t id = routing_buffer_[i] % nca::config::N_MICRO_EXPERTS;
-                // [STABILITY] Lower LR for visual grounding to prevent explosion
                 nca::linalg::mx_update_gaussian_moment(expert_pool_gate_[id], x_q, adv, 1e-5f, x_norm);
                 nca::linalg::mx_update_gaussian_moment(expert_pool_up_[id], x_q, adv, 1e-5f, x_norm);
             }
