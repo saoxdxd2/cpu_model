@@ -7,6 +7,7 @@
 #include "core/simd/avx512_math.hpp"
 #include <immintrin.h>
 #include <algorithm>
+#include <cmath>
 
 namespace nca::simd::avx512 {
 
@@ -163,6 +164,11 @@ void mx_update_gaussian_moment(
     const size_t bpr = x_q.num_blocks;
     float norm = (precomputed_norm > 0) ? precomputed_norm : nca::simd::avx512::mx_compute_activation_norm(x_q);
     
+    // [STABILITY] Ensure norm is bounded and error is finite
+    norm = std::max(norm, 1e-4f);
+    if (!std::isfinite(error)) error = 0.0f;
+    error = std::clamp(error, -10.0f, 10.0f);
+
     float current_total_w = 0;
     for (size_t b = 0; b < bpr; ++b) current_total_w += nca::linalg::decode_e8m0_scale(w.scales[b]);
     if (current_total_w > 5.0f && lr > 0) lr *= 0.05f; 
@@ -185,6 +191,9 @@ void mx_update_gaussian_moment(
             __m512 v_wf = _mm512_mul_ps(_mm512_cvtepi32_ps(v_wi), v_sw);
             __m512 v_new_w = _mm512_fmadd_ps(v_grad_scale, _mm512_cvtepi32_ps(v_xi), v_wf);
             
+            // [STABILITY] Clamp internal thought weights to prevents nan wrap-around
+            v_new_w = _mm512_min_ps(_mm512_max_ps(v_new_w, _mm512_set1_ps(-10.0f)), _mm512_set1_ps(10.0f));
+
             __m512i qi = _mm512_cvtps_epi32(_mm512_roundscale_ps(_mm512_mul_ps(v_new_w, v_inv_sw), _MM_FROUND_TO_NEAREST_INT |_MM_FROUND_NO_EXC));
             qi = _mm512_min_epi32(_mm512_max_epi32(qi, _mm512_set1_epi32(-127)), _mm512_set1_epi32(127));
             _mm_storeu_si128((__m128i*)&w.data[b*32 + offset], _mm512_cvtepi32_epi8(qi));

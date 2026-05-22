@@ -11,6 +11,7 @@
 #include "core/activations.hpp"
 #include "core/spectral/spectral_logic.hpp"
 #include "core/spectral/fwht.hpp"
+#include <iostream>
 #include <cmath>
 #include <algorithm>
 #include <random>
@@ -99,10 +100,17 @@ void MultimodalEngine::step_batch(const float* text_in, const float* image_in, f
         // 1. Cross-Modal Fusion
         if (im_in) {
             vision_encoder_.encode_gui(im_in, vision_latent_.get(), D);
-            for (size_t i = 0; i < D; ++i) env_state[i] += vision_latent_[i] * 0.1f;
+            for (size_t i = 0; i < D; ++i) {
+                env_state[i] += vision_latent_[i] * 0.1f;
+                // [STABILITY] Clamp after each fusion
+                env_state[i] = std::clamp(env_state[i], -10.0f, 10.0f);
+            }
         }
         if (t_in) {
-            for (size_t i = 0; i < D; ++i) env_state[i] += t_in[i];
+            for (size_t i = 0; i < D; ++i) {
+                env_state[i] += t_in[i];
+                env_state[i] = std::clamp(env_state[i], -10.0f, 10.0f);
+            }
         }
 
         // 2. Logic Cycles (Gemma-4 Recursive Wavefront)
@@ -135,10 +143,13 @@ void MultimodalEngine::step_batch(const float* text_in, const float* image_in, f
         nca::spectral::ifwht_no_scale({env_state, D});
 
         // 3. Actuation (RMS Output Scaling)
-        float sum_sq = 1e-6f;
+        float sum_sq = 1e-8f; // Robust epsilon
         for(size_t j=0; j<D; ++j) sum_sq += env_state[j] * env_state[j];
         float rms = std::sqrt(sum_sq / D);
         float scale = 1.0f / (rms + 1e-6f);
+        
+        // Final Safety Clamp
+        scale = std::clamp(scale, 0.001f, 100.0f);
         
         size_t write_count = std::min(D, out_dim);
         for(size_t j=0; j<write_count; ++j) e_out[j] = env_state[j] * scale;
@@ -152,7 +163,8 @@ void MultimodalEngine::update_from_trajectory(size_t count, size_t obs_dim, size
     
     for (size_t t = 0; t < count; ++t) {
         const float* state = states + t * obs_dim;
-        float adv = std::clamp(advantages[t], -10.0f, 10.0f); 
+        // Robust gradient clipping
+        float adv = std::clamp(advantages[t], -5.0f, 5.0f); 
 
         nca::linalg::mx_quantize_x(state, x_q);
         float x_norm = nca::linalg::mx_compute_activation_norm(x_q);
@@ -163,8 +175,9 @@ void MultimodalEngine::update_from_trajectory(size_t count, size_t obs_dim, size
         if (routing_buffer_.size() >= 16) {
             for(int i=0; i<16; ++i) {
                 size_t id = routing_buffer_[i] % nca::config::N_MICRO_EXPERTS;
-                nca::linalg::mx_update_gaussian_moment(expert_pool_gate_[id], x_q, adv, 1e-4f, x_norm);
-                nca::linalg::mx_update_gaussian_moment(expert_pool_up_[id], x_q, adv, 1e-4f, x_norm);
+                // [STABILITY] Lower LR for visual grounding to prevent explosion
+                nca::linalg::mx_update_gaussian_moment(expert_pool_gate_[id], x_q, adv, 1e-5f, x_norm);
+                nca::linalg::mx_update_gaussian_moment(expert_pool_up_[id], x_q, adv, 1e-5f, x_norm);
             }
         }
     }

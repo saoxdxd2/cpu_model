@@ -25,6 +25,7 @@ add_executable(offline_trainer offline_trainer.cpp weight_adapter.cpp deep_trans
 add_executable(fidelity_test fidelity_test.cpp weight_adapter.cpp deep_translator.cpp)
 add_executable(ai_ide_trainer ai_ide_trainer.cpp code_streamer.cpp weight_adapter.cpp deep_translator.cpp)
 add_executable(bit_trainer bit_trainer.cpp code_streamer.cpp weight_adapter.cpp deep_translator.cpp)
+add_executable(visual_trainer visual_trainer.cpp weight_adapter.cpp deep_translator.cpp)
 
 target_link_libraries(offline_trainer 
     nca_core
@@ -45,6 +46,12 @@ target_link_libraries(ai_ide_trainer
 )
 
 target_link_libraries(bit_trainer
+    nca_core
+    agentic_env
+    ${TORCH_LIBRARIES}
+)
+
+target_link_libraries(visual_trainer
     nca_core
     agentic_env
     ${TORCH_LIBRARIES}
