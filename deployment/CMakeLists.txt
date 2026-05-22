@@ -19,9 +19,13 @@ target_link_libraries(test_deployment nca_deploy)
 add_executable(test_chatbot test_chatbot.cpp)
 target_link_libraries(test_chatbot nca_deploy nca_encoding)
 
-target_link_libraries(nca_deploy
-    nca_core
-)
+add_executable(test_alphabet test_alphabet.cpp)
+target_link_libraries(test_alphabet nca_deploy nca_encoding)
+
+add_executable(test_ide_agent test_ide_agent.cpp)
+target_link_libraries(test_ide_agent nca_deploy nca_encoding)
+
+target_link_libraries(nca_deploy nca_core)
 
 if(MSVC)
     target_compile_options(nca_deploy PRIVATE /arch:AVX512 /Oi /Ot)
