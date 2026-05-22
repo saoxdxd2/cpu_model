@@ -169,13 +169,24 @@ void MultimodalEngine::reset_state() {
 void MultimodalEngine::step(const float* text_in, const float* image_in, float* out) {
     const size_t D = nca::config::D_MODEL;
     
-    // ── 0. OBSERVATION INJECTION (ENCODER) ──
-    if (image_in && !text_in) {
-        encoder_.encode(image_in, state_.get(), D);
+    // ── 0. CROSS-MODAL FUSION (ENCODER) ──
+    // Simultaneously ingest semantic commands and visual GUI state
+    if (image_in) {
+        // Encode raw pixels into the vision_latent_ channel
+        vision_encoder_.encode_gui(image_in, vision_latent_.get(), D);
+        
+        // Additive fusion into the primary state wavefront
+        for (size_t i = 0; i < D; ++i) state_[i] += vision_latent_[i] * 0.1f;
+    }
+
+    if (text_in) {
+        // Direct injection of semantic tokens/alphabet primitives
+        for (size_t i = 0; i < D; ++i) state_[i] += text_in[i];
     }
 
     // ── 1. IMPORTANCE CLASSIFICATION ──
-    ImportanceDecision d = classifier_.classify(text_in ? text_in : state_.get(), state_.get(), prediction_buf_.get(), D);
+    // The engine's "Attention" is now fused across modalities
+    ImportanceDecision d = classifier_.classify(state_.get(), state_.get(), prediction_buf_.get(), D);
 
     // ── 2. STATE INJECTION ──
     if (text_in) {

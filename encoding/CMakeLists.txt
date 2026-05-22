@@ -12,7 +12,9 @@ include_directories(
 
 add_library(nca_encoding STATIC
     state_encoder.cpp
+    vision_encoder.cpp
     tokenizer.cpp
+    saliency_writer.cpp
 )
 
 add_executable(test_encoding test_encoding.cpp)

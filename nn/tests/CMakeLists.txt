@@ -70,4 +70,18 @@ target_compile_options(test_torch_integration PRIVATE /arch:AVX512 /O2 /fp:fast)
 add_executable(test_full_response test_full_response.cpp)
 target_include_directories(test_full_response PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
 target_link_libraries(test_full_response PRIVATE nca_core agentic_env "${TORCH_LIBRARIES}")
+
+add_executable(test_visual_reasoning test_visual_reasoning.cpp)
+target_include_directories(test_visual_reasoning PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
+target_link_libraries(test_visual_reasoning PRIVATE nca_core nca_encoding "${TORCH_LIBRARIES}")
+
+add_executable(test_agentic_cli test_agentic_cli.cpp)
+target_include_directories(test_agentic_cli PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
+target_link_libraries(test_agentic_cli PRIVATE nca_core agentic_env "${TORCH_LIBRARIES}")
+
+add_executable(test_silicon_writing test_silicon_writing.cpp)
+target_include_directories(test_silicon_writing PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
+target_link_libraries(test_silicon_writing PRIVATE nca_core agentic_env nca_encoding "${TORCH_LIBRARIES}")
+
 target_compile_options(test_full_response PRIVATE /arch:AVX512 /O2 /fp:fast)
+target_compile_options(test_visual_reasoning PRIVATE /arch:AVX512 /O2 /fp:fast)

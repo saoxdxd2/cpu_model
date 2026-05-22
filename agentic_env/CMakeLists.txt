@@ -17,6 +17,7 @@ add_library(agentic_env STATIC
     replay_memory.cpp
     tactical_env.cpp
     sim_loop.cpp
+    vscode_env.cpp
 )
 target_include_directories(agentic_env PUBLIC 
     ${CMAKE_CURRENT_SOURCE_DIR}/..
