@@ -38,7 +38,7 @@ int main() {
     
     nca::config::EngineConfig cfg;
     cfg.logic_backend = nca::config::LogicBackend::SDMS_Predictive;
-    nca::execution::MultimodalEngine engine(cfg);
+    nca::execution::MultimodalEngine engine(nca::config::D_MODEL, 80, cfg);
     engine.reset_state();
 
     std::mt19937 gen(1337);

@@ -102,8 +102,21 @@ size_t ReplayMemory::get_latest_spans(size_t count, BatchSpan* out_spans) const 
 BatchSpan ReplayMemory::get_latest_contiguous(size_t count) const {
     if (size_ == 0 || count == 0) return {nullptr,nullptr,nullptr,nullptr,0};
     size_t actual = count < size_ ? count : size_;
-    actual = actual < cursor_ ? actual : cursor_;
+    
+    // If cursor is 0 and we are full, the latest 'actual' items are at the end of the buffer.
+    if (cursor_ == 0 && size_ == capacity_) {
+        size_t s = capacity_ - actual;
+        return {states_ + s*obs_dim_, actions_ + s*action_dim_, rewards_ + s, dones_ + s, actual};
+    }
+
+    if (actual > cursor_) {
+        // Not enough data before the cursor to satisfy 'actual' contiguously.
+        // Return only what is available before the cursor.
+        actual = cursor_;
+    }
+
     if (actual == 0) return {nullptr,nullptr,nullptr,nullptr,0};
+    
     size_t s = cursor_ - actual;
     return {states_ + s*obs_dim_, actions_ + s*action_dim_, rewards_ + s, dones_ + s, actual};
 }

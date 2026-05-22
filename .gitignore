@@ -1,0 +1,33 @@
+# Build directories
+build/
+bin/
+obj/
+out/
+Release/
+Debug/
+
+# LibTorch artifacts
+*.dll
+*.lib
+*.pdb
+*.exp
+
+# Large Data & Foundation Models (Do not push to Git)
+*.gguf
+*.pt
+*.bin
+*.pth
+foundation_raw_dump.pt
+foundation_dequantized.pt
+nca_final_model.pt
+
+# Python caches
+__pycache__/
+.cache/
+.ipynb_checkpoints/
+
+# User-specific
+.vscode/
+.vs/
+*.swp
+*.user

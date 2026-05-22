@@ -36,7 +36,7 @@ void test_router_out_of_bounds() {
 
 void test_engine_zero_input() {
     std::cout << "  [TEST] Engine Zero Input Stability... " << std::flush;
-    nca::execution::MultimodalEngine engine;
+    nca::execution::MultimodalEngine engine(nca::config::D_MODEL, 80);
     std::vector<float> text(2048, 0.0f);
     std::vector<float> out(2048);
     

@@ -58,7 +58,7 @@ int main() {
 
     nca::config::EngineConfig cfg;
     cfg.logic_backend = nca::config::LogicBackend::SpectralRoutedExperts;
-    nca::execution::MultimodalEngine engine(cfg);
+    nca::execution::MultimodalEngine engine(nca::config::D_MODEL, 80, cfg);
 
     const int d_model = 2048;
     std::vector<int> seq_lengths = {512, 1024, 2048, 4096, 8192};

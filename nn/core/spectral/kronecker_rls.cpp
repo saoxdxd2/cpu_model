@@ -196,14 +196,20 @@ void KroneckerRLSState::update(const float* x, const float* target, float lambda
         _mm256_storeu_ps(&A[i], _mm256_mul_ps(_mm256_loadu_ps(&A[i]), v_inv_lambda));
     }
     for (; i < dim_a * dim_a; ++i) A[i] /= lambda;
-    for (i = 0; i < dim_a; ++i) max_A = std::max(max_A, A[i * dim_a + i]);
+    for (i = 0; i < dim_a; ++i) {
+        A[i * dim_a + i] += 1e-6f; // [STABILITY] Diagonal Regularization
+        max_A = std::max(max_A, A[i * dim_a + i]);
+    }
 
     i = 0;
     for (; i + 7 < dim_b * dim_b; i += 8) {
         _mm256_storeu_ps(&B[i], _mm256_mul_ps(_mm256_loadu_ps(&B[i]), v_inv_lambda));
     }
     for (; i < dim_b * dim_b; ++i) B[i] /= lambda;
-    for (i = 0; i < dim_b; ++i) max_B = std::max(max_B, B[i * dim_b + i]);
+    for (i = 0; i < dim_b; ++i) {
+        B[i * dim_b + i] += 1e-6f; // [STABILITY] Diagonal Regularization
+        max_B = std::max(max_B, B[i * dim_b + i]);
+    }
 
     if (max_A > 1e4f) {
         __m256 v_scale = _mm256_set1_ps(1e4f / max_A);

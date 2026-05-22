@@ -36,6 +36,10 @@ public:
     // 2. Advantage Estimation (L1-Fused GAE Phase)
     // 3. Neural Architecture Update (Learning Phase Placeholder)
     void run_epoch();
+    
+    // Provide access for the training pipeline
+    VecEnv* get_vec_env() { return vec_env_.get(); }
+    ReplayMemory* get_memory() { return memory_.get(); }
 
 private:
     SimLoopConfig cfg_;

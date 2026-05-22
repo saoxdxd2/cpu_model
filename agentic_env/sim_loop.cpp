@@ -44,7 +44,13 @@ SimLoop::~SimLoop() {
 
 void SimLoop::run_epoch() {
     size_t act_dim = vec_env_->get_action_dim();
+    size_t obs_dim = vec_env_->get_observation_dim();
     size_t engine_out_dim = act_dim + 1;
+
+    // ────────────────────────────────────────────────────────────────────────
+    // PHASE 0: PREPARATION
+    // ────────────────────────────────────────────────────────────────────────
+    memory_->clear();
 
     // ────────────────────────────────────────────────────────────────────────
     // PHASE 1: HIGH-THROUGHPUT ROLLOUT
@@ -54,9 +60,9 @@ void SimLoop::run_epoch() {
         // 0. Query Laws of Physics (Action Masks)
         vec_env_->get_action_masks(batched_masks_);
 
-        // 1. Neural Forward Pass
-        // The dense spatial tactical grid is mapped as the "image_in" tensor
-        engine_->step(nullptr, latest_obs_, engine_out_);
+        // 1. Neural Forward Pass (BATCHED OPTIMIZATION)
+        // processes all 32 parallel environments in a single fused AVX-512 call
+        engine_->step_batch(nullptr, latest_obs_, engine_out_, cfg_.num_envs);
 
         // 2. Decode Logits and Apply Action Masks
         for (size_t i = 0; i < cfg_.num_envs; ++i) {
@@ -84,9 +90,28 @@ void SimLoop::run_epoch() {
         // 3. Batched Environment Step
         VecEnv::BatchedStepResult res = vec_env_->step(batched_actions_);
 
+        // [STABILITY] Convert masked logits to clean one-hot actions for memory
+        // This prevents -1e9f from entering the training loss via t_actions.
+        alignas(64) float clean_actions[32 * 80];
+        std::memset(clean_actions, 0, sizeof(clean_actions));
+        for (size_t i = 0; i < cfg_.num_envs; ++i) {
+            for (size_t entity = 0; entity < 16; ++entity) {
+                size_t base = i * act_dim + entity * 5;
+                int best_a = 0;
+                float best_v = batched_actions_[base];
+                for (int a = 1; a < 5; ++a) {
+                    if (batched_actions_[base + a] > best_v) {
+                        best_v = batched_actions_[base + a];
+                        best_a = a;
+                    }
+                }
+                clean_actions[base + best_a] = 1.0f;
+            }
+        }
+
         // 4. Push to Compute Surface
         // 50% Bandwidth savings applied — next_states are NOT stored.
-        memory_->push_batch(cfg_.num_envs, latest_obs_, batched_actions_, res.rewards, res.terminated);
+        memory_->push_batch(cfg_.num_envs, latest_obs_, clean_actions, res.rewards, res.terminated);
         memory_->write_values(cfg_.num_envs, batched_values_);
 
         latest_obs_ = res.next_observations;
@@ -97,8 +122,8 @@ void SimLoop::run_epoch() {
     // ────────────────────────────────────────────────────────────────────────
     
     // Bootstrap the final transition V(s_T)
-    engine_->step(nullptr, latest_obs_, engine_out_);
     for (size_t i = 0; i < cfg_.num_envs; ++i) {
+        engine_->step(nullptr, latest_obs_ + i * obs_dim, engine_out_ + i * engine_out_dim);
         batched_values_[i] = engine_out_[i * engine_out_dim + act_dim];
     }
 

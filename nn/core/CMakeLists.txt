@@ -47,6 +47,7 @@ target_include_directories(nca_core PUBLIC
 
 target_link_libraries(nca_core PUBLIC
     ${TORCH_LIBRARIES}
+    nca_encoding
 )
 
 if(MSVC)

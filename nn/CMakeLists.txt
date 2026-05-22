@@ -46,6 +46,7 @@ endif()
 #   #include "core/simd/dispatch.hpp"
 #   #include "config/model_config.hpp"
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/..)
 
 # ── Subdirectories ─────────────────────────────────────────────────────────
 add_subdirectory(core)

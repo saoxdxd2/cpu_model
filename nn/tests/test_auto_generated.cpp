@@ -34,6 +34,8 @@ int main() {
     nca::testing::print_hardware_info();
 
     nca::testing::run_benchmark("nca::math::silu", &nca::math::silu);
+    nca::testing::run_benchmark("nca::training::step_batch", &nca::training::step_batch);
+    nca::testing::run_benchmark("nca::training::update_from_trajectory", &nca::training::update_from_trajectory);
     nca::testing::run_benchmark("nca::layers::glr_step", &nca::layers::glr_step);
     nca::testing::run_benchmark("nca::layers::halting_step", &nca::layers::halting_step);
     nca::testing::run_benchmark("nca::layers::fused_gated_silu_quantize", &nca::layers::fused_gated_silu_quantize);

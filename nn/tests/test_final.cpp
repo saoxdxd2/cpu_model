@@ -43,7 +43,7 @@ int main() {
         std::cout << "  [RUN ] Backend: SDMS_Predictive (Unified v27.0)... " << std::flush;
         nca::config::EngineConfig cfg;
         cfg.logic_backend = nca::config::LogicBackend::SDMS_Predictive;
-        nca::execution::MultimodalEngine engine(cfg);
+        nca::execution::MultimodalEngine engine(nca::config::D_MODEL, 80, cfg);
         auto t0 = std::chrono::high_resolution_clock::now();
         engine.step(text_in, img_in, out);
         auto t1 = std::chrono::high_resolution_clock::now();

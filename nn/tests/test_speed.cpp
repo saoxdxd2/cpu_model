@@ -23,7 +23,7 @@ int main() {
 
     nca::config::EngineConfig cfg;
     cfg.logic_backend = nca::config::LogicBackend::SDMS_Predictive;
-    nca::execution::MultimodalEngine engine(cfg);
+    nca::execution::MultimodalEngine engine(nca::config::D_MODEL, 80, cfg);
 
     // Warmup
     for(int i=0; i<50; ++i) engine.step(text_in, img_in, out);

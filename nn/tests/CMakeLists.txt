@@ -20,10 +20,10 @@ add_custom_command(
     COMMENT "Generating C++ auto-profiler..."
 )
 
-add_executable(test_auto ${CMAKE_CURRENT_SOURCE_DIR}/test_auto_generated.cpp)
-target_include_directories(test_auto PRIVATE ${CMAKE_SOURCE_DIR})
-target_link_libraries(test_auto PRIVATE nca_core "${TORCH_LIBRARIES}")
-target_compile_options(test_auto PRIVATE /arch:AVX512 /O2 /fp:fast)
+add_executable(test_gup test_gup.cpp)
+target_include_directories(test_gup PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
+target_link_libraries(test_gup PRIVATE nca_core nca_deploy agentic_env "${TORCH_LIBRARIES}")
+target_compile_options(test_gup PRIVATE /arch:AVX512 /O2 /fp:fast)
 
 # ── Spectral Logic Tests (v7.0) ───────────────────────────────────────────────
 add_executable(test_spectral ${CMAKE_CURRENT_SOURCE_DIR}/test_spectral.cpp)
@@ -66,3 +66,8 @@ add_executable(test_torch_integration ${CMAKE_CURRENT_SOURCE_DIR}/test_torch_int
 target_include_directories(test_torch_integration PRIVATE ${CMAKE_SOURCE_DIR})
 target_link_libraries(test_torch_integration PRIVATE nca_core "${TORCH_LIBRARIES}")
 target_compile_options(test_torch_integration PRIVATE /arch:AVX512 /O2 /fp:fast)
+
+add_executable(test_full_response test_full_response.cpp)
+target_include_directories(test_full_response PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
+target_link_libraries(test_full_response PRIVATE nca_core agentic_env "${TORCH_LIBRARIES}")
+target_compile_options(test_full_response PRIVATE /arch:AVX512 /O2 /fp:fast)
