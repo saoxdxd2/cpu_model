@@ -45,9 +45,18 @@ wss.on('connection', (ws) => {
     console.log("[BRIDGE] New Dashboard GUI connected.");
     
     ws.on('message', (message) => {
-        // Forward dashboard commands (Model Select, Tool Toggle) to C++
-        if (cppSocket && cppSocket.writable) {
-            cppSocket.write(message + "\n");
+        try {
+            const cmd = JSON.parse(message);
+            console.log(`[BRIDGE] Uplink: ${cmd.type} -> Silicon`);
+            
+            // Forward commands to C++ (AetherGateway)
+            if (cppSocket && cppSocket.writable) {
+                // Wrap in JSON-RPC style for the C++ side
+                const payload = JSON.stringify(cmd) + "\n";
+                cppSocket.write(payload);
+            }
+        } catch (e) {
+            console.error("[BRIDGE] Malformed command from Dashboard:", message.toString());
         }
     });
 });

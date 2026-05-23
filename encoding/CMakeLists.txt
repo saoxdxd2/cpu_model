@@ -15,6 +15,7 @@ add_library(nca_encoding STATIC
     vision_encoder.cpp
     tokenizer.cpp
     saliency_writer.cpp
+    memory_probe.cpp
 )
 
 add_executable(test_encoding test_encoding.cpp)

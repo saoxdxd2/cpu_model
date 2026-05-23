@@ -75,16 +75,18 @@ int main() {
     auto engine = std::make_shared<MultimodalEngine>(1616, ACT_DIM);
     AIIDETrainer trainer(engine);
     
-    // Use relative path from root to reach vscode source
-    CodeStreamer streamer("../vscode/src"); 
+    // [THE TRICK] We crawl both the VSCode source AND the local agentic instructions
+    std::cout << "[BOOT] Scanning for Local Agentic Grounding (.agents/ instructions)...\n";
+    CodeStreamer agent_streamer("../.agents");
+    CodeStreamer codebase_streamer("../vscode/src");
 
-    std::cout << "[1/3] Loading Gemma-4 Foundation material...\n";
-    // We would normally call adopt_pretrained here
+    std::cout << "[1/3] Grounding model in local Silicon Instructions...\n";
+    trainer.train_epoch(agent_streamer); // Teach the model ITS OWN manual first!
 
-    std::cout << "[2/3] Initiating Alphabet-Level Code Training...\n";
+    std::cout << "[2/3] Initiating Alphabet-Level Code Training (VSCode Source)...\n";
     auto start = std::chrono::high_resolution_clock::now();
     
-    trainer.train_epoch(streamer);
+    trainer.train_epoch(codebase_streamer);
     
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = end - start;

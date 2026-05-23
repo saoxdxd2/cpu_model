@@ -1,6 +1,6 @@
 #pragma once
 // ============================================================================
-// NCA — Saturated Multimodal Inference Engine (v29.0 - Hardened)
+// NCA — Saturated Multimodal Inference Engine (v31.0 - Hardened)
 // core/execution/multimodal_engine.hpp
 // ============================================================================
 
@@ -12,6 +12,7 @@
 #include "core/linalg/hashed_router.hpp"
 #include "core/spectral/kronecker_rls.hpp"
 #include "config/model_config.hpp"
+#include "nn/core/execution/silicon_memory.hpp"
 #include <memory>
 #include <vector>
 
@@ -20,9 +21,9 @@ namespace nca::training { class WeightAdapter; }
 namespace nca::execution {
 
 struct WeightRegistry {
-    std::vector<nca::linalg::MXINT8Tensor*> expert_pool_gate;
-    std::vector<nca::linalg::MXINT8Tensor*> expert_pool_up;
-    nca::linalg::MXINT8Tensor* halting_gate;
+    std::vector<::nca::linalg::MXINT8Tensor*> expert_pool_gate;
+    std::vector<::nca::linalg::MXINT8Tensor*> expert_pool_up;
+    ::nca::linalg::MXINT8Tensor* halting_gate;
     float* vision_A;
     float* vision_B;
     float* vision_C;
@@ -34,59 +35,54 @@ struct WeightRegistry {
 
 class MultimodalEngine {
 public:
-    friend class nca::training::WeightAdapter;
-    explicit MultimodalEngine(size_t obs_dim = nca::config::D_MODEL, 
+    friend class ::nca::training::WeightAdapter;
+    explicit MultimodalEngine(size_t obs_dim = ::nca::config::D_MODEL, 
                               size_t act_dim = 80, 
-                              nca::config::EngineConfig engine_cfg = {});
+                              ::nca::config::EngineConfig engine_cfg = {});
 
     // Primary High-Throughput Batch Inference
     void step_batch(const float* text_in, const float* image_in, float* out, size_t batch_size);
 
-    // Legacy Single-Step (Wraps step_batch)
-    void step(const float* text_in, const float* image_in, float* out) {
-        step_batch(text_in, image_in, out, 1);
-    }
+    // [NEW] Silicon Swarm: Chained Recurrence
+    // Output of agent N becomes the context for agent N+1
+    void step_swarm(const float* initial_input, float* swarm_out, size_t max_agents);
+
+    // Legacy Single-Step
+    void step(const float* text_in, const float* image_in, float* out);
     
-    // GAE-Driven Online Adaptation
+    // GAE-Driven Online Adaptation (Fast Context)
     void update_from_trajectory(size_t count, size_t obs_dim, size_t act_dim, 
                                 const float* states, const float* actions, const float* advantages);
+
+    // [NEW] Foundational NPP Training (Slow Base Intelligence)
+    // Updates the expert pool based on prediction surprise (Entropy)
+    void refine_foundation(const float* state, const float* next_bit_target, float lr_scale = 1.0f);
 
     void reset_state();
     WeightRegistry get_weight_registry();
 
+    // [NEW] Silicon Telemetry: Collapses the wavefront into a 16x16 saliency grid
+    void get_saliency_heatmap(float* heatmap_out);
+
 private:
-    nca::config::EngineConfig engine_cfg_;
+    ::nca::config::EngineConfig engine_cfg_;
     size_t obs_dim_;
     size_t act_dim_;
     ImportanceClassifier classifier_;
     
     // [HARDENED] Silicon-Aligned Buffers (Zero Allocations)
     alignas(64) size_t routing_buffer_[1024]; 
-    nca::simd::aligned_unique_ptr<float[]> batch_state_; 
+    ::nca::simd::aligned_unique_ptr<float[]> batch_state_pool_; 
 
-    // ── PERSISTENT WEIGHT ANCHORS ───────────────────────────────────────────
-    nca::simd::aligned_unique_ptr<float[]> W_vision_A_;
-    nca::simd::aligned_unique_ptr<float[]> W_vision_B_;
-    nca::simd::aligned_unique_ptr<float[]> W_vision_C_;
-    nca::simd::aligned_unique_ptr<float[]> W_glr_alpha_;
-    nca::simd::aligned_unique_ptr<float[]> W_glr_beta_;
+    // ── SILICON MODULES ────────────────────────────────────────────────────
+    SiliconWeights weights_;
+    std::unique_ptr<SiliconWavefront> primary_wavefront_;
     
-    std::vector<nca::linalg::MXINT8Tensor> expert_pool_gate_;
-    std::vector<nca::linalg::MXINT8Tensor> expert_pool_up_;
-    
-    std::unique_ptr<nca::linalg::HashedRouter> router_;
-    nca::encoding::SiliconEncoder encoder_;
-    nca::encoding::SiliconVisionEncoder vision_encoder_;
-    nca::linalg::MXINT8Tensor W_halt_;
+    std::unique_ptr<::nca::linalg::HashedRouter> router_;
+    ::nca::encoding::SiliconEncoder encoder_;
+    ::nca::encoding::SiliconVisionEncoder vision_encoder_;
 
-    std::unique_ptr<nca::spectral::KroneckerRLSState> spectral_rls_;
-
-    // ── PERSISTENT STATE BUFFERS (L1-HOT) ───────────────────────────────────
-    nca::simd::aligned_unique_ptr<float[]> state_;
-    nca::simd::aligned_unique_ptr<float[]> vision_latent_;
-    nca::simd::aligned_unique_ptr<float[]> h_glr_;
-    nca::simd::aligned_unique_ptr<float[]> state_momentum_;
-    nca::simd::aligned_unique_ptr<float[]> prediction_buf_;
+    std::unique_ptr<::nca::spectral::KroneckerRLSState> spectral_rls_;
 };
 
 } // namespace nca::execution

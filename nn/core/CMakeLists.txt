@@ -28,6 +28,8 @@ add_library(nca_core STATIC
     execution/fused_pipeline.cpp
     execution/importance.cpp
     execution/multimodal_engine.cpp
+    execution/silicon_memory.cpp
+    execution/silicon_automation.cpp
 
     # ── Linalg ──
     linalg/mx_linear.cpp

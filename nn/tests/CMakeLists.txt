@@ -87,5 +87,25 @@ add_executable(test_multi_agent_cost test_multi_agent_cost.cpp)
 target_include_directories(test_multi_agent_cost PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
 target_link_libraries(test_multi_agent_cost PRIVATE nca_core agentic_env nca_encoding "${TORCH_LIBRARIES}")
 
+add_executable(test_silicon_swarm test_silicon_swarm.cpp)
+target_include_directories(test_silicon_swarm PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
+target_link_libraries(test_silicon_swarm PRIVATE nca_core agentic_env nca_encoding "${TORCH_LIBRARIES}")
+
+add_executable(test_intelligence_audit test_intelligence_audit.cpp)
+target_include_directories(test_intelligence_audit PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
+target_link_libraries(test_intelligence_audit PRIVATE nca_core agentic_env nca_encoding "${TORCH_LIBRARIES}")
+
+add_executable(test_memory_compression test_memory_compression.cpp)
+target_include_directories(test_memory_compression PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
+target_link_libraries(test_memory_compression PRIVATE nca_core agentic_env nca_encoding "${TORCH_LIBRARIES}")
+
+add_executable(test_freedom_refactor test_freedom_refactor.cpp)
+target_include_directories(test_freedom_refactor PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
+target_link_libraries(test_freedom_refactor PRIVATE nca_core agentic_env nca_encoding "${TORCH_LIBRARIES}")
+
+add_executable(test_vision_branding test_vision_branding.cpp)
+target_include_directories(test_vision_branding PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
+target_link_libraries(test_vision_branding PRIVATE nca_core nca_encoding "${TORCH_LIBRARIES}")
+
 target_compile_options(test_full_response PRIVATE /arch:AVX512 /O2 /fp:fast)
 target_compile_options(test_visual_reasoning PRIVATE /arch:AVX512 /O2 /fp:fast)

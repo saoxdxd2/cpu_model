@@ -12,7 +12,7 @@ add_library(nca_deploy SHARED
     nca_deploy.cpp
     peripheral_bridge.cpp
     creative_bridge.cpp
-    aether_server.cpp
+    aether_socket.cpp
 )
 target_compile_definitions(nca_deploy PRIVATE NCA_DEPLOY_EXPORT)
 
@@ -34,12 +34,12 @@ target_link_libraries(test_creative_gen nca_deploy)
 add_executable(test_autonomous_dev test_autonomous_dev.cpp)
 target_link_libraries(test_autonomous_dev nca_deploy nca_encoding agentic_env)
 
-add_executable(aether_gateway aether_gateway.cpp peripheral_bridge.cpp aether_server.cpp)
+add_executable(aether_gateway aether_gateway.cpp peripheral_bridge.cpp)
 target_link_libraries(aether_gateway nca_deploy nca_encoding)
 
 target_link_libraries(nca_deploy nca_core)
 
 if(MSVC)
-    target_link_libraries(nca_deploy user32.lib gdi32.lib)
+    target_link_libraries(nca_deploy user32.lib gdi32.lib ws2_32.lib)
     target_compile_options(nca_deploy PRIVATE /arch:AVX512 /Oi /Ot)
 endif()

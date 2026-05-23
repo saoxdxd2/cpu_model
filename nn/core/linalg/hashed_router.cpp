@@ -33,19 +33,18 @@ HashedRouter::HashedRouter(Config cfg) : cfg_(cfg) {
 void HashedRouter::route(const float* x, std::vector<size_t>& out_indices) const {
     size_t k = cfg_.top_k;
     out_indices.resize(k);
+    
+    nca::linalg::MXUINT8Tensor x_q(cfg_.d_model / 32);
+    nca::linalg::mx_quantize_x(x, x_q);
+    
     size_t count = 0;
-    route_to_buffer(x, out_indices.data(), &count);
+    route_to_buffer(x_q, out_indices.data(), &count);
     out_indices.resize(count);
 }
 
-void HashedRouter::route_to_buffer(const float* x, size_t* out_buffer, size_t* out_count) const {
-    const size_t D = cfg_.d_model;
+void HashedRouter::route_to_buffer(const nca::linalg::MXUINT8Tensor& x_q, size_t* out_buffer, size_t* out_count) const {
     const size_t N = cfg_.n_experts;
     const size_t k_target = cfg_.top_k;
-
-    // 1. Quantization (L1-Hot)
-    MXUINT8Tensor x_q(D / 32);
-    nca::linalg::mx_quantize_x(x, x_q);
 
     // 2. Score Generation (Saturated VNNI)
     alignas(64) float scores[1024]; // Max 1024 experts
