@@ -13,6 +13,7 @@ add_library(nca_deploy SHARED
     peripheral_bridge.cpp
     creative_bridge.cpp
     aether_socket.cpp
+    silicon_ui.cpp
 )
 target_compile_definitions(nca_deploy PRIVATE NCA_DEPLOY_EXPORT)
 
@@ -36,6 +37,9 @@ target_link_libraries(test_autonomous_dev nca_deploy nca_encoding agentic_env)
 
 add_executable(aether_gateway aether_gateway.cpp peripheral_bridge.cpp)
 target_link_libraries(aether_gateway nca_deploy nca_encoding)
+
+add_executable(Aether_AI_IDE bootstrapper.cpp)
+target_link_libraries(Aether_AI_IDE nca_deploy)
 
 target_link_libraries(nca_deploy nca_core)
 

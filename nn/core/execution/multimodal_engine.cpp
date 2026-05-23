@@ -93,18 +93,29 @@ void MultimodalEngine::step_batch(const float* text_in, const float* image_in, f
             float gate = t_in ? (1.0f + std::tanh(t_in[0])) : 0.1f;
             for (size_t i = 0; i < D; ++i) {
                 env_state[i] += primary_wavefront_->prediction_buf[i] * gate;
-                env_state[i] = std::clamp(env_state[i], -10.0f, 10.0f);
+                // [HARDENING] Strict Clamping
+                if (env_state[i] > 10.0f) env_state[i] = 10.0f;
+                if (env_state[i] < -10.0f) env_state[i] = -10.0f;
             }
         }
-        if (t_in && (env_state != t_in)) { // Don't add to self if using as state
+        if (t_in && (env_state != t_in)) {
             for (size_t i = 0; i < D; ++i) {
                 env_state[i] += t_in[i];
-                env_state[i] = std::clamp(env_state[i], -10.0f, 10.0f);
+                // [HARDENING] Strict Clamping
+                if (env_state[i] > 10.0f) env_state[i] = 10.0f;
+                if (env_state[i] < -10.0f) env_state[i] = -10.0f;
             }
         }
 
         // ── 2. RECURSIVE THOUGHT CYCLES ──
         nca::layers::glr_step(env_state, weights_.glr_alpha.get(), weights_.glr_beta.get(), env_state, D);
+        
+        // [HARDENING] Post-Recurrence Clamp
+        for(size_t i=0; i<D; ++i) {
+            if (env_state[i] > 10.0f) env_state[i] = 10.0f;
+            if (env_state[i] < -10.0f) env_state[i] = -10.0f;
+        }
+
         nca::spectral::fwht_inplace({env_state, D});
         
         size_t r_count = 0;
@@ -130,7 +141,12 @@ void MultimodalEngine::step_batch(const float* text_in, const float* image_in, f
 
             for(int j=0; j<16; ++j) {
                 size_t b_idx = (routing_buffer_[j] * 16) % D;
-                for(int k=0; k<16; ++k) env_state[b_idx + k] += g[j] * 0.1f;
+                for(int k=0; k<16; ++k) {
+                    env_state[b_idx + k] += g[j] * 0.1f;
+                    // [HARDENING] Inline Clamp
+                    if (env_state[b_idx + k] > 10.0f) env_state[b_idx + k] = 10.0f;
+                    if (env_state[b_idx + k] < -10.0f) env_state[b_idx + k] = -10.0f;
+                }
             }
         }
         
@@ -140,8 +156,8 @@ void MultimodalEngine::step_batch(const float* text_in, const float* image_in, f
         float sum_sq = 1e-8f; 
         for(size_t j=0; j<D; ++j) sum_sq += env_state[j] * env_state[j];
         float rms = std::sqrt(sum_sq / D);
-        float scale = 1.0f / (rms + 1e-6f);
-        scale = std::clamp(scale, 0.001f, 100.0f);
+        float scale = 1.0f / (rms + 1e-7f); // Larger epsilon
+        scale = std::clamp(scale, 0.001f, 10.0f); // Tighter scale bounds
         
         size_t write_count = std::min(D, out_dim);
         for(size_t j=0; j<write_count; ++j) e_out[j] = env_state[j] * scale;

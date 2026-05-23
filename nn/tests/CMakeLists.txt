@@ -103,9 +103,29 @@ add_executable(test_freedom_refactor test_freedom_refactor.cpp)
 target_include_directories(test_freedom_refactor PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
 target_link_libraries(test_freedom_refactor PRIVATE nca_core agentic_env nca_encoding "${TORCH_LIBRARIES}")
 
-add_executable(test_vision_branding test_vision_branding.cpp)
-target_include_directories(test_vision_branding PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
-target_link_libraries(test_vision_branding PRIVATE nca_core nca_encoding "${TORCH_LIBRARIES}")
+add_executable(test_memory_localization test_memory_localization.cpp)
+target_include_directories(test_memory_localization PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
+target_link_libraries(test_memory_localization PRIVATE nca_core agentic_env nca_encoding "${TORCH_LIBRARIES}")
+
+add_executable(test_silicon_ui test_silicon_ui.cpp)
+target_include_directories(test_silicon_ui PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
+target_link_libraries(test_silicon_ui PRIVATE nca_deploy nca_core)
+
+add_executable(test_silicon_indexer test_silicon_indexer.cpp)
+target_include_directories(test_silicon_indexer PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
+target_link_libraries(test_silicon_indexer PRIVATE nca_core agentic_env nca_encoding "${TORCH_LIBRARIES}")
+
+add_executable(test_zero_error_integration test_zero_error_integration.cpp)
+target_include_directories(test_zero_error_integration PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
+target_link_libraries(test_zero_error_integration PRIVATE nca_deploy nca_core nca_encoding agentic_env "${TORCH_LIBRARIES}")
+
+add_executable(test_stability_audit test_stability_audit.cpp)
+target_include_directories(test_stability_audit PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
+target_link_libraries(test_stability_audit PRIVATE nca_core agentic_env nca_encoding "${TORCH_LIBRARIES}")
+
+add_executable(test_final_hardening test_final_hardening.cpp)
+target_include_directories(test_final_hardening PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
+target_link_libraries(test_final_hardening PRIVATE nca_deploy nca_core nca_encoding agentic_env "${TORCH_LIBRARIES}")
 
 target_compile_options(test_full_response PRIVATE /arch:AVX512 /O2 /fp:fast)
 target_compile_options(test_visual_reasoning PRIVATE /arch:AVX512 /O2 /fp:fast)

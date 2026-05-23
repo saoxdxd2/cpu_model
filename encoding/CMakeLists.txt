@@ -16,6 +16,7 @@ add_library(nca_encoding STATIC
     tokenizer.cpp
     saliency_writer.cpp
     memory_probe.cpp
+    silicon_indexer.cpp
 )
 
 add_executable(test_encoding test_encoding.cpp)

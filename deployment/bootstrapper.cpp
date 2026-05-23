@@ -26,16 +26,6 @@ void launch_engine() {
 #endif
 }
 
-void launch_bridge() {
-    std::cout << "[BOOT] Connecting WebSocket Bridge (Node.js)...\n";
-#ifdef _WIN32
-    // Path from build/deployment/Release up to dashboard/
-    system("start /B node ..\\..\\..\\dashboard\\bridge.js");
-#else
-    system("node ../../../dashboard/bridge.js &");
-#endif
-}
-
 void open_dashboard() {
     std::cout << "[BOOT] Opening Aether Dashboard GUI...\n";
     // Point to the hosted React dashboard (Local or Remote)
@@ -54,15 +44,11 @@ int main() {
     std::cout << "========================================================\n\n";
 
     try {
-        // 1. Launch Backend Silicon
+        // 1. Launch Unified Silicon Engine (Handles Port 3001)
         launch_engine();
         std::this_thread::sleep_for(std::chrono::seconds(2));
 
-        // 2. Launch Communication Bridge
-        launch_bridge();
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-
-        // 3. Open User Interface
+        // 2. Open User Interface (Points directly to Silicon)
         open_dashboard();
 
         std::cout << "\n[SUCCESS] Aether Stack is now fully operational.\n";

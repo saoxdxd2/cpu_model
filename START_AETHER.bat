@@ -1,25 +1,17 @@
 @echo off
 setlocal
 echo ========================================================
-echo  NCA AETHER AI IDE — ONE-CLICK LAUNCHER
+echo  NCA AETHER AI IDE — AUTOMATED LAUNCHER
 echo ========================================================
 echo.
 
 :: Get the directory of the batch file
 set "ROOT_DIR=%~dp0"
 
-:: Navigate to the Release folder
-pushd "%ROOT_DIR%build\deployment\Release"
+:: Use Node.js for auto-compilation and dispatching
+node "%ROOT_DIR%launch.js"
 
-if exist "Aether_AI_IDE.exe" (
-    echo [LAUNCH] Starting Silicon Engine ^& Dashboard...
-    start "" "Aether_AI_IDE.exe"
-) else (
-    echo [ERROR] Binaries not found! Please build the project first.
-    echo Expected path: %ROOT_DIR%build\deployment\Release\Aether_AI_IDE.exe
+if %ERRORLEVEL% NEQ 0 (
+    echo [ERROR] Automated launch sequence failed.
     pause
 )
-
-popd
-echo [DONE] Bootstrapper dispatched.
-exit

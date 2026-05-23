@@ -19,6 +19,12 @@ public:
      */
     void write_patch(const float* latent_seq, size_t seq_len, std::string& patch_out);
 
+    /**
+     * Applies a saturated ASCII patch directly to the specified file.
+     * Part of the 'Freedom Refactor' surgical patching logic.
+     */
+    bool write_saturated(const std::string& path, const std::string& content);
+
 private:
     SaliencyTokenizer* tokenizer_;
 };

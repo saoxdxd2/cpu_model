@@ -1,5 +1,6 @@
 #include "encoding/saliency_writer.hpp"
 #include <iostream>
+#include <fstream>
 
 namespace nca::encoding {
 
@@ -22,6 +23,14 @@ void SaliencyWriter::write_patch(const float* latent_seq, size_t seq_len, std::s
             patch_out += '?'; // Signal lost
         }
     }
+}
+
+bool SaliencyWriter::write_saturated(const std::string& path, const std::string& content) {
+    std::ofstream out(path);
+    if (!out.is_open()) return false;
+    out << content;
+    out.close();
+    return true;
 }
 
 } // namespace nca::encoding
