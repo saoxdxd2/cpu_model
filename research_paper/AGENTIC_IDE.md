@@ -39,5 +39,12 @@ The agent "sees" the actual IDE GUI in 256x256 pixel patches.
 *   **UI Region Detection**: Using the `VisionEncoder`, the model identifies the "Terminal Window" or "Editor Region" based on pixel signatures.
 *   **Cross-Modal Focus**: As proven in `test_visual_reasoning.exe`, the agent's attention automatically shifts to the "Terminal" region when a red error appears in the GUI, mirroring the behavior of a human developer.
 
+## 5. The Freedom Refactor (Unrestricted Ground)
+
+To ensure the AI IDE is a truly autonomous ground, we performed the **Freedom Refactor** using the `SiliconAutomation` engine.
+*   **Telemetry Wipe**: Surgically stripped all `microsoft.com` telemetry endpoints and `publicLog` calls from the source.
+*   **Identity Injection**: Re-branded the IDE from "VS Code" to the **NCA Aether IDE**, grounding the agent in its own architectural manual (`.agents/`).
+*   **Zero-Node Unification**: Replaced the Node.js bridge with the **Direct Silicon Bus** (C++ WebSocket), achieving the lowest possible latency between the IDE and the engine.
+
 ---
 *Next Volume: [Intelligence Audit](BENCHMARK_REPORT.md)*

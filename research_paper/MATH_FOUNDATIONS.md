@@ -47,5 +47,18 @@ $$P(\text{word}) = \prod_{i=1}^n P(\text{char}_i | \Psi_{i-1})$$
 
 The engine is trained using **Next-Primitive Prediction (NPP)**, which forces the model to learn the structural combinations of alphabets. This leads to superior "Silicon Grammar" understanding, as the model sees the raw bitboards of code instead of abstract vocab indices.
 
+## 5. Knowledge Localization & Expert Attribution
+
+To identify "where the memory resides," we employ an **Attribution Heuristic** ($S$) that measures the energy resonance between a target alphabet pattern ($\mathbf{x}_{target}$) and the Expert Pool ($W_{pool}$):
+
+$$S_i = \sum_{b=1}^{B} \left| \text{Gate}_i(\mathbf{x}_{target}) \right| \cdot \text{Energy}(W_{up, i})$$
+
+Where:
+*   $S_i$: Saliency score for Expert $i$.
+*   $\text{Gate}_i(\cdot)$: The sparse routing probability for the target pattern.
+*   $B$: Number of blocks in the MX-Quantized tensor.
+
+This allows the NCA to generate a **Silicon Memory Map**, identifying specialized sectors such as `TYPESCRIPT_LOGIC` or `CLI_GIT_MODAL` within the shared weight foundation.
+
 ---
 *Next Volume: [Hardware Saturation](HARDWARE_SATURATION.md)*
