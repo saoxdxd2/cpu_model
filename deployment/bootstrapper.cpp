@@ -16,6 +16,10 @@
  * Orchestrates the full Silicon-to-Human stack in one click.
  */
 
+#include "deployment/silicon_ui.hpp"
+
+using namespace nca::deployment;
+
 void launch_engine() {
     std::cout << "[BOOT] Starting Aether Silicon Engine Gateway...\n";
 #ifdef _WIN32
@@ -26,16 +30,18 @@ void launch_engine() {
 #endif
 }
 
-void open_dashboard() {
-    std::cout << "[BOOT] Opening Aether Dashboard GUI...\n";
-    // Point to the hosted React dashboard (Local or Remote)
-    std::string url = "http://localhost:3000"; 
-#ifdef _WIN32
-    ShellExecuteA(NULL, "open", url.c_str(), NULL, NULL, SW_SHOWNORMAL);
-#else
-    std::string cmd = "open " + url;
-    system(cmd.c_str());
-#endif
+void start_native_gui() {
+    std::cout << "[BOOT] Opening NCA Aether Native GUI (Saturated Silicon)...\n";
+    std::cout << "       (External browser suppression ACTIVE)\n";
+    
+    // Instead of opening a browser, we initialize the native renderer
+    SiliconUI ui("NCA Aether IDE - Professional Silicon Ground");
+    
+    // The main thread now hosts the UI render loop
+    while(true) {
+        ui.render();
+        std::this_thread::sleep_for(std::chrono::milliseconds(16)); // ~60fps
+    }
 }
 
 int main() {
@@ -44,18 +50,15 @@ int main() {
     std::cout << "========================================================\n\n";
 
     try {
-        // 1. Launch Unified Silicon Engine (Handles Port 3001)
+        // 1. Launch Unified Silicon Engine (Handles Port 3001 and UI)
         launch_engine();
-        std::this_thread::sleep_for(std::chrono::seconds(2));
-
-        // 2. Open User Interface (Points directly to Silicon)
-        open_dashboard();
-
-        std::cout << "\n[SUCCESS] Aether Stack is now fully operational.\n";
-        std::cout << "[INFO] Keep this window open to maintain background services.\n";
-        std::cout << "[INFO] Press Enter to shutdown the AI IDE stack.\n";
-
-        std::cin.get();
+        std::cout << "[SUCCESS] Aether Silicon Host started in background.\n";
+        std::cout << "[INFO] Control the engine via the Dashboard (localhost:3000).\n";
+        
+        // The bootstrapper now just stays alive to monitor the gateway
+        while(true) {
+            std::this_thread::sleep_for(std::chrono::seconds(10));
+        }
 
     } catch (const std::exception& e) {
         std::cerr << "[FATAL] Boot Sequence collapsed: " << e.what() << "\n";

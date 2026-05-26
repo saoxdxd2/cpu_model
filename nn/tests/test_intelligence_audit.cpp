@@ -45,10 +45,10 @@ int main() {
     float agent_success = 0.9250f;
 
     BenchmarkResult results[] = {
-        {"Logical Density", gsm8k_stability, 0.9200, "SUPERIOR (+2.1%)"},
-        {"Code Synthesis ", humaneval_score, 0.8500, "SUPERIOR (+3.7%)"},
-        {"Tool Autonomy  ", agent_success,   0.8900, "HARDENED (+3.5%)"},
-        {"Silicon Jitter ", 0.0012,          0.0450, "SILICON-STABLE"}
+        {"Logical Density", gsm8k_stability, 0.9200f, "SUPERIOR (+2.1%)"},
+        {"Code Synthesis ", humaneval_score, 0.8500f, "SUPERIOR (+3.7%)"},
+        {"Tool Autonomy  ", agent_success,   0.8900f, "HARDENED (+3.5%)"},
+        {"Silicon Jitter ", 0.0012f,          0.0450f, "SILICON-STABLE"}
     };
 
     std::cout << "\n-----------------------------------------------------------------\n";

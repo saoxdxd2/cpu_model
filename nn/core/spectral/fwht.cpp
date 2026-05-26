@@ -36,9 +36,18 @@ void fwht_inplace(std::span<float> data) {
         for (size_t i = 0; i < n; i += (len << 1)) {
 #if defined(__AVX512F__) || defined(_MSC_VER)
             if (len >= 16) {
-                for (size_t j = 0; j < len; j += 16) {
-                    butterfly_v16(p + i + j, p + i + len + j);
+                size_t j = 0;
+                // [ILP] 2× butterfly unroll — saturates both FMA ports
+                for (; j + 32 <= len; j += 32) {
+                    __m512 a0 = _mm512_loadu_ps(p+i+j),    b0 = _mm512_loadu_ps(p+i+len+j);
+                    __m512 a1 = _mm512_loadu_ps(p+i+j+16), b1 = _mm512_loadu_ps(p+i+len+j+16);
+                    _mm512_storeu_ps(p+i+j,        _mm512_add_ps(a0, b0));
+                    _mm512_storeu_ps(p+i+len+j,    _mm512_sub_ps(a0, b0));
+                    _mm512_storeu_ps(p+i+j+16,     _mm512_add_ps(a1, b1));
+                    _mm512_storeu_ps(p+i+len+j+16, _mm512_sub_ps(a1, b1));
                 }
+                for (; j < len; j += 16)
+                    butterfly_v16(p + i + j, p + i + len + j);
                 continue;
             }
 #endif

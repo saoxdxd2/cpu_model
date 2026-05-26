@@ -21,8 +21,17 @@ try {
     execSync('cmake --build build --config Release', { stdio: 'inherit' });
     console.log("\n[OK] Build Saturated.");
 
-    // 3. Launch Aether AI IDE Ground
-    console.log("\n[2/2] Launching Aether AI IDE Ground...");
+    // 3. Launch Aether Dashboard (In background)
+    console.log("\n[2/3] Launching Aether Dashboard (Control Interface)...");
+    spawn('npm', ['start'], {
+        cwd: path.join(__dirname, 'dashboard'),
+        shell: true,
+        stdio: 'ignore', // Don't clutter the console
+        detached: true
+    }).unref();
+
+    // 4. Launch Aether AI IDE Ground
+    console.log("\n[3/3] Launching Aether Silicon Host...");
     const bootstrapperPath = path.join(buildDir, 'deployment', 'Release', 'Aether_AI_IDE.exe');
     
     if (!fs.existsSync(bootstrapperPath)) {
@@ -37,7 +46,7 @@ try {
     });
     
     child.unref();
-    console.log("[SUCCESS] Aether Pipeline dispatched. Node process exiting.\n");
+    console.log("[SUCCESS] Aether Pipeline dispatched. Control via Dashboard at localhost:3000.\n");
     process.exit(0);
 
 } catch (error) {

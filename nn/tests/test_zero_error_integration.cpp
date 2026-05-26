@@ -21,7 +21,6 @@ int main() {
     std::cout << " NCA — ZERO-ERROR INTEGRATION STRESS TEST             \n";
     std::cout << "========================================================\n\n";
 
-    const size_t D = 2048;
     auto engine = std::make_shared<MultimodalEngine>(1616, 80);
     SiliconIndexer indexer("../vscode/src");
     

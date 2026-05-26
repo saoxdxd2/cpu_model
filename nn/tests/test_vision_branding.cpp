@@ -17,7 +17,6 @@ int main() {
     std::cout << " NCA — VISUAL IDENTITY TRAINING (Re-Branding)         \n";
     std::cout << "========================================================\n\n";
 
-    const size_t D_MODEL = 2048;
     auto engine = std::make_shared<MultimodalEngine>(1616, 80);
 
     // 1. Scenario: "RECOGNIZING THE LOGO"

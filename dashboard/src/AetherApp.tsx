@@ -79,6 +79,15 @@ const AetherApp = () => {
         {view === 'dashboard' ? (
           <div className="grid">
             <div className="col">
+              <div className="card">
+                <h3>Silicon Control</h3>
+                <button className="btn-primary" style={{backgroundColor: '#00d2ff'}} onClick={() => sendCommand('START_IDE', {})}>
+                  Launch Native Aether IDE
+                </button>
+                <button className="btn-secondary" style={{marginTop: '0.5rem'}} onClick={() => sendCommand('CREATE_AGENT', {})}>
+                  Spawn Swarm Wavefront
+                </button>
+              </div>
               <ModelHub 
                 agents={telemetry.active_agents || 0}
                 onLoad={() => sendCommand('LOAD_MODEL', 'nca_final_model.pt')} 

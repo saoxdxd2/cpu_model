@@ -10,6 +10,10 @@
 
 using namespace nca::deployment;
 
+#include "deployment/silicon_ui.hpp"
+
+using namespace nca::deployment;
+
 struct AgentSession {
     uint32_t id;
     std::map<std::string, bool> tools;
@@ -22,13 +26,11 @@ struct AgentSession {
  */
 class AetherGateway {
 public:
-    AetherGateway(size_t obs_dim = 1616, size_t act_dim = 80) {
+    AetherGateway(size_t obs_dim = 1616, size_t act_dim = 80) : ui_(nullptr) {
         std::cout << "[GATEWAY] Unifying Silicon Bus (Zero-Node Refactor)...\n";
         engine_ = nca_engine_create(obs_dim, act_dim);
         peripherals_ = std::make_unique<PeripheralBridge>();
         
-        // --- THE UNIFICATION ---
-        // Port 3001 is now direct-to-silicon. Dashboard talks here.
         bus_ = std::make_unique<AetherSocket>(3001); 
         bus_->start();
     }
@@ -42,6 +44,14 @@ public:
         std::string cmd;
         while (bus_->get_next_command(cmd)) {
             std::cout << "[SILICON_BUS] Received: " << cmd << "\n";
+            
+            if (cmd.find("START_IDE") != std::string::npos) {
+                if (!ui_) {
+                    std::cout << "  [GATEWAY] Dashboard Command: LAUNCHING NATIVE IDE...\n";
+                    ui_ = std::make_unique<SiliconUI>("NCA Aether IDE - Saturated Silicon Ground");
+                }
+            }
+
             if (cmd.find("CREATE_AGENT") != std::string::npos) {
                 uint32_t sid = (uint32_t)sessions_.size();
                 sessions_[sid] = {sid, {}, 0.0f};
@@ -49,7 +59,12 @@ public:
             }
         }
 
-        // 2. Real Telemetry Broadcast
+        // 2. Render Native UI if active
+        if (ui_) {
+            ui_->render();
+        }
+
+        // 3. Real Telemetry Broadcast
         static float wavefront = 0.9842f;
         wavefront = 0.95f + (static_cast<float>(rand()) / RAND_MAX) * 0.05f;
         
@@ -67,6 +82,7 @@ private:
     nca_engine_ptr engine_;
     std::unique_ptr<PeripheralBridge> peripherals_;
     std::unique_ptr<AetherSocket> bus_;
+    std::unique_ptr<SiliconUI> ui_;
     std::map<uint32_t, AgentSession> sessions_;
 };
 

@@ -100,20 +100,21 @@ void sla_step_avx512(
                 _mm_prefetch(reinterpret_cast<const char*>(&k_cache[(j + PF) * D]), _MM_HINT_T0);
         }
 
-        // Accumulate dot product across d_head in 2 accumulators for ILP
-        __m512 acc0 = _mm512_setzero_ps();
-        __m512 acc1 = _mm512_setzero_ps();
+        // [ILP] 4-way accumulator — saturates FMA ports for d_head=128
+        __m512 acc0 = _mm512_setzero_ps(), acc1 = _mm512_setzero_ps();
+        __m512 acc2 = _mm512_setzero_ps(), acc3 = _mm512_setzero_ps();
 
         size_t k = 0;
-        for (; k + 32 <= D; k += 32) {
+        for (; k + 64 <= D; k += 64) {
             acc0 = _mm512_fmadd_ps(_mm512_loadu_ps(&q[k]),      _mm512_loadu_ps(&k_row[k]),      acc0);
             acc1 = _mm512_fmadd_ps(_mm512_loadu_ps(&q[k + 16]), _mm512_loadu_ps(&k_row[k + 16]), acc1);
+            acc2 = _mm512_fmadd_ps(_mm512_loadu_ps(&q[k + 32]), _mm512_loadu_ps(&k_row[k + 32]), acc2);
+            acc3 = _mm512_fmadd_ps(_mm512_loadu_ps(&q[k + 48]), _mm512_loadu_ps(&k_row[k + 48]), acc3);
         }
-        // Tail (d_head=128 is cleanly divisible by 32, but handle generically)
         for (; k + 16 <= D; k += 16)
             acc0 = _mm512_fmadd_ps(_mm512_loadu_ps(&q[k]), _mm512_loadu_ps(&k_row[k]), acc0);
 
-        float dot = _mm512_reduce_add_ps(_mm512_add_ps(acc0, acc1));
+        float dot = _mm512_reduce_add_ps(_mm512_add_ps(_mm512_add_ps(acc0, acc1), _mm512_add_ps(acc2, acc3)));
         scores[j] = dot * inv_sqrt;
     }
 

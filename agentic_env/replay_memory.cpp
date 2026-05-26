@@ -177,7 +177,9 @@ void ReplayMemory::fused_normalize_observations(size_t count) {
                 _mm256_store_ps(obs_var_  + d, v_new_var);
 
                 __m256 v_std = _mm256_sqrt_ps(_mm256_add_ps(v_new_var, v_eps));
-                __m256 v_inv_std = _mm256_div_ps(_mm256_set1_ps(1.0f), v_std);
+                // [ILP] NR reciprocal: 4-cycle vs 11-cycle vdivps
+                __m256 v_rcp = _mm256_rcp_ps(v_std);
+                __m256 v_inv_std = _mm256_mul_ps(v_rcp, _mm256_fnmadd_ps(v_std, v_rcp, _mm256_set1_ps(2.0f)));
                 __m256 v_norm = _mm256_mul_ps(v_delta2, v_inv_std);
                 _mm256_store_ps(obs + d, v_norm);
             }

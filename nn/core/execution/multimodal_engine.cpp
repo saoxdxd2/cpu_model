@@ -91,29 +91,35 @@ void MultimodalEngine::step_batch(const float* text_in, const float* image_in, f
         if (im_in) {
             vision_encoder_.encode_gui(im_in, primary_wavefront_->prediction_buf.get(), D);
             float gate = t_in ? (1.0f + std::tanh(t_in[0])) : 0.1f;
-            for (size_t i = 0; i < D; ++i) {
-                env_state[i] += primary_wavefront_->prediction_buf[i] * gate;
-                // [HARDENING] Strict Clamping
-                if (env_state[i] > 10.0f) env_state[i] = 10.0f;
-                if (env_state[i] < -10.0f) env_state[i] = -10.0f;
+            // [ILP] Branchless AVX-512 fused FMA + clamp
+            __m512 v_gate = _mm512_set1_ps(gate);
+            __m512 v_hi = _mm512_set1_ps(10.0f), v_lo = _mm512_set1_ps(-10.0f);
+            for (size_t i = 0; i < D; i += 16) {
+                __m512 v_s = _mm512_loadu_ps(env_state + i);
+                __m512 v_p = _mm512_loadu_ps(primary_wavefront_->prediction_buf.get() + i);
+                v_s = _mm512_fmadd_ps(v_p, v_gate, v_s);
+                _mm512_storeu_ps(env_state + i, _mm512_min_ps(_mm512_max_ps(v_s, v_lo), v_hi));
             }
         }
         if (t_in && (env_state != t_in)) {
-            for (size_t i = 0; i < D; ++i) {
-                env_state[i] += t_in[i];
-                // [HARDENING] Strict Clamping
-                if (env_state[i] > 10.0f) env_state[i] = 10.0f;
-                if (env_state[i] < -10.0f) env_state[i] = -10.0f;
+            // [ILP] Branchless AVX-512 add + clamp
+            __m512 v_hi = _mm512_set1_ps(10.0f), v_lo = _mm512_set1_ps(-10.0f);
+            for (size_t i = 0; i < D; i += 16) {
+                __m512 v_s = _mm512_add_ps(_mm512_loadu_ps(env_state + i), _mm512_loadu_ps(t_in + i));
+                _mm512_storeu_ps(env_state + i, _mm512_min_ps(_mm512_max_ps(v_s, v_lo), v_hi));
             }
         }
 
         // ── 2. RECURSIVE THOUGHT CYCLES ──
         nca::layers::glr_step(env_state, weights_.glr_alpha.get(), weights_.glr_beta.get(), env_state, D);
         
-        // [HARDENING] Post-Recurrence Clamp
-        for(size_t i=0; i<D; ++i) {
-            if (env_state[i] > 10.0f) env_state[i] = 10.0f;
-            if (env_state[i] < -10.0f) env_state[i] = -10.0f;
+        // [HARDENING] Post-Recurrence Clamp (Branchless AVX-512)
+        {
+            __m512 v_hi = _mm512_set1_ps(10.0f), v_lo = _mm512_set1_ps(-10.0f);
+            for (size_t i = 0; i < D; i += 16) {
+                __m512 v_s = _mm512_loadu_ps(env_state + i);
+                _mm512_storeu_ps(env_state + i, _mm512_min_ps(_mm512_max_ps(v_s, v_lo), v_hi));
+            }
         }
 
         nca::spectral::fwht_inplace({env_state, D});
@@ -139,22 +145,28 @@ void MultimodalEngine::step_batch(const float* text_in, const float* image_in, f
             __m512 vRes = _mm512_mul_ps(nca::simd::avx512::silu_ps(vG), vU);
             _mm512_store_ps(g, vRes);
 
-            for(int j=0; j<16; ++j) {
-                size_t b_idx = (routing_buffer_[j] * 16) % D;
-                for(int k=0; k<16; ++k) {
-                    env_state[b_idx + k] += g[j] * 0.1f;
-                    // [HARDENING] Inline Clamp
-                    if (env_state[b_idx + k] > 10.0f) env_state[b_idx + k] = 10.0f;
-                    if (env_state[b_idx + k] < -10.0f) env_state[b_idx + k] = -10.0f;
+            {
+                __m512 v_hi = _mm512_set1_ps(10.0f), v_lo = _mm512_set1_ps(-10.0f);
+                for(int j=0; j<16; ++j) {
+                    size_t b_idx = (routing_buffer_[j] * 16) % D;
+                    __m512 v_g = _mm512_set1_ps(g[j] * 0.1f);
+                    __m512 v_s = _mm512_add_ps(_mm512_loadu_ps(env_state + b_idx), v_g);
+                    _mm512_storeu_ps(env_state + b_idx, _mm512_min_ps(_mm512_max_ps(v_s, v_lo), v_hi));
                 }
             }
         }
         
         nca::spectral::ifwht_no_scale({env_state, D});
 
-        // ── 3. ACTUATION ──
-        float sum_sq = 1e-8f; 
-        for(size_t j=0; j<D; ++j) sum_sq += env_state[j] * env_state[j];
+        // ── 3. ACTUATION (Vectorized RMS) ──
+        __m512 v_sq0 = _mm512_setzero_ps(), v_sq1 = _mm512_setzero_ps();
+        for (size_t j = 0; j < D; j += 32) {
+            __m512 v0 = _mm512_loadu_ps(env_state + j);
+            __m512 v1 = _mm512_loadu_ps(env_state + j + 16);
+            v_sq0 = _mm512_fmadd_ps(v0, v0, v_sq0);
+            v_sq1 = _mm512_fmadd_ps(v1, v1, v_sq1);
+        }
+        float sum_sq = _mm512_reduce_add_ps(_mm512_add_ps(v_sq0, v_sq1)) + 1e-8f;
         float rms = std::sqrt(sum_sq / D);
         float scale = 1.0f / (rms + 1e-7f); // Larger epsilon
         scale = std::clamp(scale, 0.001f, 10.0f); // Tighter scale bounds
