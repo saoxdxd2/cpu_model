@@ -24,6 +24,9 @@ MultimodalEngine::MultimodalEngine(size_t obs_dim, size_t act_dim, nca::config::
 
     router_ = std::make_unique<nca::linalg::HashedRouter>(nca::linalg::HashedRouter::Config{D, n_experts, nca::config::TOP_K_EXPERTS, 32});
     spectral_rls_ = std::make_unique<nca::spectral::KroneckerRLSState>(D);
+
+    // [GEOMETRIC] Initialize the Wavefront Router (dormant until a .geo graph is loaded)
+    geometric_router_ = std::make_unique<WavefrontRouter>(D, 16);
 }
 
 void MultimodalEngine::reset_state() {
@@ -174,6 +177,29 @@ void MultimodalEngine::step_batch(const float* text_in, const float* image_in, f
         size_t write_count = std::min(D, out_dim);
         for(size_t j=0; j<write_count; ++j) e_out[j] = env_state[j] * scale;
     }
+}
+
+// ── GEOMETRIC SCHEMA INFERENCE ──────────────────────────────────────────────
+// This method completely bypasses the O(N^2) VNNI matrix pipeline.
+// It routes the primary wavefront through the compiled Top-16 structural 
+// pointers using AVX-512 gather + Xorshift stochastic exploration.
+void MultimodalEngine::step_geometric(float temperature) {
+    const size_t D = nca::config::D_MODEL;
+    float* state = primary_wavefront_->state.get();
+
+    // 1. GLR recurrence (cheap O(N) — preserves the recursive wavefront calculus)
+    nca::layers::glr_step(state, weights_.glr_alpha.get(), weights_.glr_beta.get(), state, D);
+
+    // 2. Spectral transform (cheap O(N log N) — preserves frequency-domain reasoning)
+    nca::spectral::fwht_inplace({state, D});
+
+    // 3. THE GEOMETRIC HOP — replaces the entire VNNI Expert MoE pipeline
+    //    Instead of quantizing, routing through 1024 experts, doing SwiGLU,
+    //    we execute a single wavefront step through the compiled pointer graph.
+    geometric_router_->step_wavefront(state, temperature);
+
+    // 4. Inverse spectral transform
+    nca::spectral::ifwht_no_scale({state, D});
 }
 
 void MultimodalEngine::update_from_trajectory(size_t count, size_t obs_dim, size_t act_dim, 

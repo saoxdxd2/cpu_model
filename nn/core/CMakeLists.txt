@@ -30,6 +30,7 @@ add_library(nca_core STATIC
     execution/multimodal_engine.cpp
     execution/silicon_memory.cpp
     execution/silicon_automation.cpp
+    execution/wavefront_router.cpp
 
     # ── Linalg ──
     linalg/mx_linear.cpp

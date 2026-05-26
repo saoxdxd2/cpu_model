@@ -13,6 +13,7 @@
 #include "core/spectral/kronecker_rls.hpp"
 #include "config/model_config.hpp"
 #include "nn/core/execution/silicon_memory.hpp"
+#include "core/execution/wavefront_router.hpp"
 #include <memory>
 #include <vector>
 
@@ -49,6 +50,10 @@ public:
 
     // Legacy Single-Step
     void step(const float* text_in, const float* image_in, float* out);
+
+    // [NEW] Geometric Schema Inference
+    // Bypasses the VNNI matrix math entirely and uses the top-16 structural pointers
+    void step_geometric(float temperature = 0.2f);
     
     // GAE-Driven Online Adaptation (Fast Context)
     void update_from_trajectory(size_t count, size_t obs_dim, size_t act_dim, 
@@ -79,6 +84,8 @@ private:
     std::unique_ptr<SiliconWavefront> primary_wavefront_;
     
     std::unique_ptr<::nca::linalg::HashedRouter> router_;
+    std::unique_ptr<::nca::execution::WavefrontRouter> geometric_router_;
+    
     ::nca::encoding::SiliconEncoder encoder_;
     ::nca::encoding::SiliconVisionEncoder vision_encoder_;
 

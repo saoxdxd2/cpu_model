@@ -129,3 +129,21 @@ target_link_libraries(test_final_hardening PRIVATE nca_deploy nca_core nca_encod
 
 target_compile_options(test_full_response PRIVATE /arch:AVX512 /O2 /fp:fast)
 target_compile_options(test_visual_reasoning PRIVATE /arch:AVX512 /O2 /fp:fast)
+
+# ── Geometric Schema Proofs ──────────────────────────────────────────────────
+add_executable(test_geometric_schema_benchmark test_geometric_schema_benchmark.cpp)
+target_include_directories(test_geometric_schema_benchmark PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
+target_link_libraries(test_geometric_schema_benchmark PRIVATE nca_core)
+target_compile_options(test_geometric_schema_benchmark PRIVATE /arch:AVX512 /O2 /fp:fast)
+
+add_executable(test_geometric_translation test_geometric_translation.cpp)
+target_include_directories(test_geometric_translation PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
+target_compile_options(test_geometric_translation PRIVATE /O2 /fp:fast)
+
+add_executable(test_geometric_wavefront test_geometric_wavefront.cpp)
+target_include_directories(test_geometric_wavefront PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
+target_compile_options(test_geometric_wavefront PRIVATE /arch:AVX512 /O2 /fp:fast)
+
+add_executable(test_geometric_randomness test_geometric_randomness.cpp)
+target_include_directories(test_geometric_randomness PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
+target_compile_options(test_geometric_randomness PRIVATE /arch:AVX512 /O2 /fp:fast)

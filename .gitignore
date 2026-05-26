@@ -5,6 +5,7 @@ obj/
 out/
 Release/
 Debug/
+node_modules/
 
 # LibTorch artifacts
 *.dll

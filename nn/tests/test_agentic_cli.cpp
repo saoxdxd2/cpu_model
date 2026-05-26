@@ -12,17 +12,19 @@ using namespace nca::env;
 using namespace nca::execution;
 
 int main() {
-    std::cout << "========================================================\n";
-    std::cout << " NCA — AI IDE REAL-WORLD CLI PROOF                    \n";
-    std::cout << "========================================================\n\n";
+    try {
+        std::cout << "========================================================\n";
+        std::cout << " NCA — AI IDE REAL-WORLD CLI PROOF                    \n";
+        std::cout << "========================================================\n\n";
+        std::cout.flush();
 
     // 1. Initialize VSCode Sandbox
-    // Note: We use the root of our project as the sandbox for the proof
-    VSCodeEnv env("."); 
+    // Note: We use a smaller directory as sandbox for the proof to avoid node_modules
+    VSCodeEnv env("c:/Users/sao/Documents/cpu_model/agentic_env"); 
     MultimodalEngine engine(1616, 80);
 
     // 2. Initial State: Read the repo
-    std::vector<float> obs(1616);
+    std::vector<float> obs(2048, 0.0f);
     env.reset(obs.data());
 
     std::cout << "[1/3] Triggering Agentic Action: 'git status'...\n";
@@ -32,7 +34,7 @@ int main() {
     action[1] = 1.0f; // High-confidence intent for command 1
 
     // 3. Execute Step (Triggers _popen)
-    std::vector<float> next_obs(1616);
+    std::vector<float> next_obs(2048, 0.0f);
     StepResult res = env.step(action.data(), next_obs.data());
 
     // 4. Verification: Check if next_obs contains terminal output
@@ -55,5 +57,12 @@ int main() {
     std::cout << "\n[SUCCESS] REAL-WORLD CLI BRIDGE HARD-WIRED.\n";
     std::cout << "          The agent is now observing its own system impact.\n";
 
-    return 0;
+        return 0;
+    } catch (const std::exception& e) {
+        std::cerr << "Exception: " << e.what() << std::endl;
+        return 1;
+    } catch (...) {
+        std::cerr << "Unknown exception" << std::endl;
+        return 1;
+    }
 }

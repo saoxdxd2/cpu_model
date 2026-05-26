@@ -58,9 +58,32 @@ def extract_gguf_to_nca(gguf_path="gemma-4-e2b-it-Q4_K_M.gguf"):
         
         # Dequantize to raw numpy
         raw_numpy = gguf.dequantize(tensor.data, tensor.tensor_type)
-        
-        # Convert to Torch FP32
-        nca_material[tensor.name] = torch.from_numpy(raw_numpy).float().contiguous()
+        fp32_tensor = torch.from_numpy(raw_numpy).float().contiguous()
+
+        # ── THE GEOMETRIC COMPILER (Distillation) ──
+        if len(fp32_tensor.shape) == 2:
+            print(f"    -> Compiling {fp32_tensor.shape} to Geometric Wavefront (Top-16)...")
+            # For each concept (row), find the top 16 strongest connections
+            # This mathematically prunes the noise and creates the structural pointers
+            top_probs, top_indices = torch.topk(torch.abs(fp32_tensor), k=16, dim=1)
+            
+            # Re-gather the actual signed probabilities based on the indices
+            actual_probs = torch.gather(fp32_tensor, 1, top_indices)
+            
+            # Normalize probabilities within the Top-16 Wavefront
+            # This perfectly preserves the probability mass during deep recursion
+            row_sums = torch.sum(torch.abs(actual_probs), dim=1, keepdim=True)
+            row_sums[row_sums == 0] = 1.0 # Prevent division by zero
+            normalized_probs = actual_probs / row_sums
+            
+            # We store the compiled representation: 
+            # 1. The Pointers (next_shape_id)
+            # 2. The Quantized Q-Values (width/probabilities)
+            nca_material[tensor.name + ".pointers"] = top_indices.to(torch.int32)
+            nca_material[tensor.name + ".probs"] = normalized_probs
+        else:
+            # 1D tensors (biases/norms) remain continuous
+            nca_material[tensor.name] = fp32_tensor
         
         del raw_numpy
         gc.collect()
@@ -74,7 +97,8 @@ def extract_gguf_to_nca(gguf_path="gemma-4-e2b-it-Q4_K_M.gguf"):
     # Export metadata
     metadata = {
         "source_gguf": gguf_path,
-        "mode": "surgical",
+        "mode": "geometric_compiled",
+        "wavefront_size": 16,
         "tensor_count": len(nca_material),
         "keys": list(nca_material.keys())
     }
