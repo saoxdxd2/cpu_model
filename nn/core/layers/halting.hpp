@@ -8,7 +8,7 @@
 // dynamic early-exit points, enabling compute to shift from heavy to light blocks.
 // ============================================================================
 
-#include "core/linalg/mx_linear.hpp"
+//#include "core/linalg/mx_linear.hpp"
 #include <cstddef>
 
 namespace nca::layers {
@@ -21,12 +21,12 @@ struct HaltingState {
 
 // Computes the halting probability for the current layer/step.
 // Returns the halting probability p_t.
-float halting_step(
-    const nca::linalg::MXUINT8Tensor& x_q,
-    const nca::linalg::MXINT8Tensor& w_halt,
-    float b_halt,
-    HaltingState& state,
-    bool& should_halt
-);
+// float halting_step(
+//     const nca::linalg::MXUINT8Tensor& x_q,
+//     const nca::linalg::MXINT8Tensor& w_halt,
+//     float b_halt,
+//     HaltingState& state,
+//     bool& should_halt
+// );
 
 } // namespace nca::layers

@@ -11,7 +11,6 @@ add_library(nca_core STATIC
     layers/glr.cpp
     layers/ssm.cpp
     layers/sla.cpp
-    layers/mlp.cpp
     layers/halting.cpp
 
     # ── Vision Layers ──
@@ -25,7 +24,6 @@ add_library(nca_core STATIC
 
     # ── Execution ──
     execution/route_planner.cpp
-    execution/fused_pipeline.cpp
     execution/importance.cpp
     execution/multimodal_engine.cpp
     execution/silicon_memory.cpp
@@ -33,14 +31,11 @@ add_library(nca_core STATIC
     execution/wavefront_router.cpp
 
     # ── Linalg ──
-    linalg/mx_linear.cpp
-    linalg/hashed_router.cpp
 
     # ── SIMD Kernels ──
     simd/dispatch.cpp
     simd/avx2_kernels.cpp
     simd/avx512_kernels.cpp
-    simd/avx512_vnni.cpp
 )
 
 target_include_directories(nca_core PUBLIC

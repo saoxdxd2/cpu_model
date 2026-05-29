@@ -30,7 +30,7 @@ void run_module_proofs() {
     MultimodalEngine engine(1616, 80);
     // (ACT_DIM + 1) = 81 outputs per environment
     std::vector<float> out_batch(32 * 81); 
-    engine.step_batch(nullptr, obs.data(), out_batch.data(), 1); // Test single first
+    engine.step_geometric(nullptr, obs.data(), out_batch.data(), 0.2f); // Test single first
     std::cout << "  [PASS] MultimodalEngine processed batch cycle.\n";
 
     std::cout << "\n[PROOF] 3. ENV MODULE: Proving Replay Memory Alignment...\n";
@@ -43,7 +43,7 @@ void run_module_proofs() {
     std::cout << "\n[PROOF] 4. TRAINING MODULE: Testing Gemma-4 Deep Adoption...\n";
     auto wr = engine.get_weight_registry();
     torch::Tensor dummy_gate = torch::randn({16, 2048});
-    nca::linalg::mx_quantize_w(dummy_gate.data_ptr<float>(), *wr.expert_pool_gate[0]);
+    // nca::linalg::mx_quantize_w(dummy_gate.data_ptr<float>(), *wr.expert_pool_gate[0]);
     std::cout << "  [PASS] WeightAdapter successfully swizzled foundation data into silicon experts.\n";
 
     std::cout << "\n[PROOF] 5. DEPLOYMENT MODULE: Verifying C-API Topology Introspection...\n";

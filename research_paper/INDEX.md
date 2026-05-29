@@ -35,5 +35,11 @@ This directory contains the exhaustive technical documentation for the NCA Aethe
 *   **Global Benchmarking**: GSM8K, HumanEval, and Agentic Success rates.
 *   **Fidelity Comparison**: Performance vs. original Gemma-4 foundation.
 
+### Volume VII: [Geometric Schema & Wavefront Routing](GEOMETRIC_SCHEMA.md)
+*   **Transformer-to-Geometric Compiler**: GGUF → Top-16 Structural Branch Distillation.
+*   **AVX-512 Wavefront Router**: Stochastic pointer chasing with zero-cost Xorshift exploration.
+*   **Deep Recursion Proof**: 30-hop signal preservation vs. Dense Matrix noise diffusion.
+*   **Migration Plan**: [GEOMETRIC_SCHEMA_MIGRATION.md](GEOMETRIC_SCHEMA_MIGRATION.md)
+
 ---
-*Document Class: Saturated Silicon Standard (v1.0)*
+*Document Class: Saturated Silicon Standard (v2.0 — Geometric Schema)*

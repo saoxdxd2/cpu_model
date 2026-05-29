@@ -1,5 +1,6 @@
 #include "agentic_env/sim_loop.hpp"
 #include <immintrin.h>
+#include <iostream>
 #include <cstring>
 #include <stdexcept>
 
@@ -60,9 +61,11 @@ void SimLoop::run_epoch() {
         // 0. Query Laws of Physics (Action Masks)
         vec_env_->get_action_masks(batched_masks_);
 
-        // 1. Neural Forward Pass (BATCHED OPTIMIZATION)
-        // processes all 32 parallel environments in a single fused AVX-512 call
-        engine_->step_batch(nullptr, latest_obs_, engine_out_, cfg_.num_envs);
+        // 1. Neural Forward Pass (Geometric Schema)
+        // We loop because AVX-512 lanes are now used for parallel logical tracking (Top-16), not batching
+        for(size_t i=0; i<cfg_.num_envs; ++i) {
+            engine_->step_geometric_env(latest_obs_ + i * obs_dim, engine_out_ + i * engine_out_dim, 0.2f);
+        }
 
         // 2. Decode Logits and Apply Action Masks
         for (size_t i = 0; i < cfg_.num_envs; ++i) {
@@ -123,7 +126,7 @@ void SimLoop::run_epoch() {
     
     // Bootstrap the final transition V(s_T)
     for (size_t i = 0; i < cfg_.num_envs; ++i) {
-        engine_->step(nullptr, latest_obs_ + i * obs_dim, engine_out_ + i * engine_out_dim);
+        engine_->step_geometric_env(latest_obs_ + i * obs_dim, engine_out_ + i * engine_out_dim, 0.0f);
         batched_values_[i] = engine_out_[i * engine_out_dim + act_dim];
     }
 
@@ -148,8 +151,10 @@ void SimLoop::run_epoch() {
     }
 
     // We feed the L1-hot memory mesh directly into the engine's Spectral RLS
-    engine_->update_from_trajectory(span.count, vec_env_->get_observation_dim(), act_dim, 
-                                    span.states, span.actions, advantages);
+    // [GEOMETRIC] The legacy VNNI update_from_trajectory is deprecated.
+    // The Geometric Schema uses pointer-based DDQN which is slated for Phase 4.
+    // engine_->update_from_trajectory(span.count, vec_env_->get_observation_dim(), act_dim, 
+    //                                 span.states, span.actions, advantages);
     
     // Evaluate Curriculum Progression
     curriculum_->update_and_step_level(mean_abs_adv / span.count);

@@ -32,7 +32,7 @@ int main() {
     std::cout << "\n[2/4] Testing Recursive Wavefront Stability...\n";
     float input[2048] = {1.0f};
     float output[81];
-    for(int i=0; i<100; ++i) engine->step(input, nullptr, output);
+    for(int i=0; i<100; ++i) engine->step_geometric(input, nullptr, output, 0.0f);
     std::cout << "  >>> Status: BIT-PERFECT STABLE.\n";
 
     // 3. Silicon Swarm Hardening

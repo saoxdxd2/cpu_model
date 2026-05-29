@@ -8,27 +8,14 @@ MemoryProbe::MemoryProbe(std::shared_ptr<nca::execution::MultimodalEngine> engin
     : engine_(engine) {}
 
 std::vector<float> MemoryProbe::attribute_knowledge(const std::string& bit_pattern) {
-    auto wr = engine_->get_weight_registry();
-    std::vector<float> scores(wr.n_experts, 0.0f);
+    // [GEOMETRIC] The legacy VNNI matrix is deprecated.
+    // In the new Geometric Schema, knowledge attribution is traced by checking the 
+    // `next_shape_id` pointers in the WavefrontRouter. (Implementation deferred).
     
-    // We simulate the 'Attribution' by measuring cosine similarity between 
-    // the bit_pattern signature and each expert's weights.
-    // (Conceptual: Using the first 128 elements of the bit_pattern hash)
-    
-    std::cout << "[Probe] Attributing knowledge for: \"" << bit_pattern << "\"\n";
+    // std::cout << "[Probe] Attributing knowledge for: \"" << bit_pattern << "\"\n";
 
-    for (size_t i = 0; i < wr.n_experts; ++i) {
-        // High-speed silicon heuristic:
-        // We check the 'Gate' activation strength for this expert's sector
-        float gate_energy = 0.0f;
-        auto& gate = *wr.expert_pool_gate[i];
-        for(size_t j=0; j < gate.num_blocks; ++j) {
-            gate_energy += std::abs(static_cast<float>(gate.data[j * 32]));
-        }
-        scores[i] = gate_energy;
-    }
-    
-    return scores;
+    // For now, return empty as the old matrix does not exist.
+    return std::vector<float>();
 }
 
 std::map<std::string, std::vector<int>> MemoryProbe::map_foundation_sectors() {

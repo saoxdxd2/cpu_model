@@ -51,7 +51,13 @@ void nca_engine_step(nca_engine_ptr engine,
                      float* actions_out) {
     if (!engine) return;
     // Single environment step optimized for latency
-    engine->internal->step(nullptr, observation, actions_out);
+    engine->internal->step_geometric(observation, nullptr, actions_out, 0.0f);
+}
+
+void nca_engine_get_state(nca_engine_ptr engine, float* state_out) {
+    if (!engine || !state_out) return;
+    const float* state = engine->internal->get_state();
+    std::memcpy(state_out, state, 2048 * sizeof(float));
 }
 
 }

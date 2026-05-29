@@ -33,11 +33,11 @@ int main() {
     std::vector<float> out(81);
 
     // Feed the Needle at Step 0
-    engine->step(needle.data(), nullptr, out.data());
+    engine->step_geometric(needle.data(), nullptr, out.data(), 0.0f);
 
     // Feed the Haystack for 9,999 steps
     for (size_t i = 1; i < SEQ_LEN; ++i) {
-        engine->step(noise.data(), nullptr, out.data());
+        engine->step_geometric(noise.data(), nullptr, out.data(), 0.0f);
         if (i % 2000 == 0) std::cout << "  Processed " << i << " steps...\n";
     }
 

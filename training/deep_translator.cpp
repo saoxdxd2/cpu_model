@@ -38,44 +38,7 @@ void DeepTranslator::decompose_to_kronecker(const torch::Tensor& W,
               << (S.sum() - S[0]).item<float>() << ")\n";
 }
 
-void DeepTranslator::swizzle_to_micro_experts(const torch::Tensor& gate_proj,
-                                              const torch::Tensor& up_proj,
-                                              std::vector<nca::linalg::MXINT8Tensor>& gate_pool,
-                                              std::vector<nca::linalg::MXINT8Tensor>& up_pool) {
-    auto g = gate_proj.to(torch::kCPU).to(torch::kFloat32).contiguous();
-    auto u = up_proj.to(torch::kCPU).to(torch::kFloat32).contiguous();
-    
-    size_t rows = g.size(0);
-    size_t cols = g.size(1);
-    
-    // Gemma/Llama use large SwiGLU MLPs (e.g., 16384 -> 2048)
-    // We swizzle these into 1024 Micro-Experts (16 rows each)
-    size_t count = std::min(gate_pool.size(), rows / 16);
-    
-    for (size_t i = 0; i < count; ++i) {
-        auto g_slice = g.slice(0, i * 16, (i + 1) * 16).flatten();
-        auto u_slice = u.slice(0, i * 16, (i + 1) * 16).flatten();
-        
-        nca::linalg::mx_quantize_w(g_slice.data_ptr<float>(), gate_pool[i]);
-        nca::linalg::mx_quantize_w(u_slice.data_ptr<float>(), up_pool[i]);
-    }
-    
-    std::cout << "  [Swizzle] Ported SwiGLU layers to " << count << " Rank-16 NCA experts.\n";
-}
-
-void DeepTranslator::manual_mx_quantize(const float* src, 
-                                        nca::linalg::MXINT8Tensor& target,
-                                        float forced_scale) {
-    // Low-level bridge to the engine's quantization kernel
-    nca::linalg::mx_quantize_w(src, target);
-    
-    if (forced_scale > 0) {
-        // Override computed scales for manual hardware tuning
-        for (size_t i = 0; i < target.num_blocks; ++i) {
-            target.scales[i] = static_cast<uint8_t>(std::clamp(std::log2(forced_scale) + 127.0f, 0.0f, 255.0f));
-        }
-    }
-}
+    // Legacy MX logic removed during Geometric Schema Migration
 
 void DeepTranslator::adopt_attention_block(const torch::Tensor& q_proj,
                                            const torch::Tensor& k_proj,

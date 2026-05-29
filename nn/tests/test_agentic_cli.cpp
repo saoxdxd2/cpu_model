@@ -21,7 +21,7 @@ int main() {
     // 1. Initialize VSCode Sandbox
     // Note: We use a smaller directory as sandbox for the proof to avoid node_modules
     VSCodeEnv env("c:/Users/sao/Documents/cpu_model/agentic_env"); 
-    MultimodalEngine engine(1616, 80);
+    MultimodalEngine engine(2048, 80);
 
     // 2. Initial State: Read the repo
     std::vector<float> obs(2048, 0.0f);
@@ -52,7 +52,7 @@ int main() {
     // 5. Final Reason
     std::cout << "[3/3] Executing Reasoner on CLI Feedback...\n";
     std::vector<float> response(81);
-    engine.step(next_obs.data(), nullptr, response.data());
+    engine.step_geometric(next_obs.data(), nullptr, response.data(), 0.0f);
     
     std::cout << "\n[SUCCESS] REAL-WORLD CLI BRIDGE HARD-WIRED.\n";
     std::cout << "          The agent is now observing its own system impact.\n";

@@ -74,7 +74,7 @@ int main() {
         // 2. Measure NCA (O(N log N))
         // Note: NCA step is constant-time per token regardless of history
         auto t0 = std::chrono::high_resolution_clock::now();
-        engine.step(text_in, nullptr, out);
+        engine.step_geometric(text_in, nullptr, out, 0.0f);
         auto t1 = std::chrono::high_resolution_clock::now();
         double nca_ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
 

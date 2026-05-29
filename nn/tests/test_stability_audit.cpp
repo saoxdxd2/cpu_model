@@ -26,13 +26,13 @@ int main() {
     float initial_energy = 0.0f;
 
     // 1. Establish Baseline
-    engine->step(input, nullptr, output);
+    engine->step_geometric(input, nullptr, output, 0.0f);
     for(int i=0; i<81; ++i) initial_energy += std::abs(output[i]);
     
     std::cout << "[Audit] Starting 10,000 recursive thought cycles...\n";
 
     for(int i=0; i<10000; ++i) {
-        engine->step(input, nullptr, output);
+        engine->step_geometric(input, nullptr, output, 0.0f);
         
         // Safety Check: NaN/Inf detection
         for(int j=0; j<81; ++j) {

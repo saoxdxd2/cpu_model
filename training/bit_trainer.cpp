@@ -44,7 +44,7 @@ public:
                 const float* bit_signal = tokenizer_.get_char_embedding(chunk[i]);
                 
                 std::vector<float> response(81);
-                engine_->step(bit_signal, nullptr, response.data());
+                engine_->step_geometric(bit_signal, nullptr, response.data(), 0.0f);
                 
                 // Entropy modulation: Model learns the 'surprise' of the next bit
                 epoch_entropy += std::abs(response[0]);

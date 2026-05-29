@@ -42,7 +42,7 @@ public:
             auto t0 = std::chrono::high_resolution_clock::now();
             
             // The model "sees" the pixels and "thinks" about the IDE state
-            engine_->step(nullptr, pixels.data(), response.data());
+            engine_->step_geometric(nullptr, pixels.data(), response.data(), 0.0f);
             
             auto t1 = std::chrono::high_resolution_clock::now();
             double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();

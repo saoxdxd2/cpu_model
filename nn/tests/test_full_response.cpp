@@ -50,7 +50,7 @@ int main() {
 
     std::cout << "[2/3] Reasoning: Fusing Perception with Command Pulse...\n";
     // We feed both Semantic Command and encoded Tactical State
-    engine.step(semantic_command.data(), latent.data(), response.data());
+    engine.step_geometric(semantic_command.data(), latent.data(), response.data(), 0.0f);
 
     // 5. Evaluate Liveness & Decisiveness
     std::cout << "[3/3] Response Analysis:\n";

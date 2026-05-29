@@ -23,6 +23,9 @@ target_link_libraries(test_deployment nca_deploy)
 add_executable(test_chatbot test_chatbot.cpp)
 target_link_libraries(test_chatbot nca_deploy nca_encoding)
 
+add_executable(test_conversation test_conversation.cpp)
+target_link_libraries(test_conversation nca_deploy nca_encoding)
+
 add_executable(test_alphabet test_alphabet.cpp)
 target_link_libraries(test_alphabet nca_deploy nca_encoding)
 

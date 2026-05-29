@@ -9,31 +9,28 @@
 #include <chrono>
 
 int main() {
-    std::cout << "+---------------------------------------------------+\n";
-    std::cout << "|  NCA -- Throughput & Speed Projection Benchmark   |\n";
-    std::cout << "+---------------------------------------------------+\n\n";
+    std::cout << "+---------------------------------------------------+" << std::endl;
+    std::cout << "|  NCA -- Throughput & Speed Projection Benchmark   |" << std::endl;
+    std::cout << "+---------------------------------------------------+" << std::endl << std::endl;
 
     const size_t D = nca::config::D_MODEL;
     alignas(64) float text_in[2048];
-    alignas(64) float img_in[16 * 16 * 128];
     alignas(64) float out[2048];
-
     for(size_t i=0; i<D; ++i) text_in[i] = (float)(i % 255) / 255.0f;
-    for(size_t i=0; i<16*16*128; ++i) img_in[i] = 0.0f;
 
     nca::config::EngineConfig cfg;
     cfg.logic_backend = nca::config::LogicBackend::SDMS_Predictive;
     nca::execution::MultimodalEngine engine(nca::config::D_MODEL, 80, cfg);
 
     // Warmup
-    for(int i=0; i<50; ++i) engine.step(text_in, img_in, out);
+    for(int i=0; i<50; ++i) engine.step_geometric(text_in, nullptr, out, 0.0f);
 
     // ── 1. INFERENCE THROUGHPUT ──────────────────────────────────────────────
     // Simulate pure inference by feeding steady-state inputs (no online learning triggered)
     const int INF_STEPS = 1000;
     auto t0 = std::chrono::high_resolution_clock::now();
     for(int i=0; i<INF_STEPS; ++i) {
-        engine.step(nullptr, nullptr, out);
+        engine.step_geometric(nullptr, nullptr, out, 0.0f);
     }
     auto t1 = std::chrono::high_resolution_clock::now();
     double inf_ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
@@ -45,7 +42,7 @@ int main() {
     auto t2 = std::chrono::high_resolution_clock::now();
     for(int i=0; i<TRN_STEPS; ++i) {
         text_in[0] = (float)i; // High novelty to force learning
-        engine.step(text_in, nullptr, out);
+        engine.step_geometric(text_in, nullptr, out, 0.0f);
     }
     auto t3 = std::chrono::high_resolution_clock::now();
     double trn_ms = std::chrono::duration<double, std::milli>(t3 - t2).count();

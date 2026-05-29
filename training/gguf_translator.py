@@ -56,9 +56,9 @@ def extract_gguf_to_nca(gguf_path="gemma-4-e2b-it-Q4_K_M.gguf"):
             
         print(f"  Extracting: {tensor.name:50} | {tensor.tensor_type.name}")
         
-        # Dequantize to raw numpy
+        # Dequantize to raw numpy and copy to make writable
         raw_numpy = gguf.dequantize(tensor.data, tensor.tensor_type)
-        fp32_tensor = torch.from_numpy(raw_numpy).float().contiguous()
+        fp32_tensor = torch.from_numpy(raw_numpy.copy()).float().contiguous()
 
         # ── THE GEOMETRIC COMPILER (Distillation) ──
         if len(fp32_tensor.shape) == 2:

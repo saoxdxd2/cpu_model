@@ -57,12 +57,12 @@ int main() {
     
     for (size_t t = 0; t < SEQ_LEN; ++t) {
         if (t == 100) {
-            engine.step(needle.data(), nullptr, out.data());
+            engine.step_geometric(needle.data(), nullptr, out.data(), 0.0f);
         } else {
             // Fill with DYNAMIC structural noise
             std::vector<float> noise(D);
             for(size_t i=0; i<D; ++i) noise[i] = dist(gen);
-            engine.step(noise.data(), nullptr, out.data());
+            engine.step_geometric(noise.data(), nullptr, out.data(), 0.0f);
         }
         if (t % 512 == 0) std::cout << "." << std::flush;
     }
@@ -72,7 +72,7 @@ int main() {
     std::vector<float> trigger(D, 0.0f);
     // Use first 512 elements (25%) as key for structural victory
     for(int i=0; i<512; ++i) trigger[i] = needle[i]; 
-    engine.step(trigger.data(), nullptr, out.data());
+    engine.step_geometric(trigger.data(), nullptr, out.data(), 0.0f);
     std::cout << " DONE\n";
 
     float cos_sim_a = calculate_cosine_similarity(out.data(), needle.data(), D);

@@ -34,7 +34,7 @@ int main() {
     
     for(int epoch=0; epoch<5; ++epoch) {
         // Model sees the re-branded GUI
-        engine->step(nullptr, logo_pixels.data(), response.data());
+        engine->step_geometric(nullptr, logo_pixels.data(), response.data(), 0.0f);
         
         // We evaluate if the 'High Saliency' thought matches the branding location
         float recognition_confidence = std::abs(response[0]);

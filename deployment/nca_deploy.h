@@ -42,6 +42,9 @@ NCA_API void nca_engine_step(nca_engine_ptr engine,
                              const float* observation, 
                              float* actions_out);
 
+// Exposes the 2048-dimensional continuous graph state (memory curve)
+NCA_API void nca_engine_get_state(nca_engine_ptr engine, float* state_out);
+
 #ifdef __cplusplus
 }
 #endif

@@ -21,18 +21,22 @@ void SiliconWeights::initialize_unit_noise(size_t d_model, size_t n_experts) {
         glr_beta[i] = 0.1f + dist(gen) * 0.01f;
     }
 
-    expert_pool_gate.reserve(n_experts);
-    expert_pool_up.reserve(n_experts);
-    auto temp = nca::simd::make_aligned_unique<float[]>(d_model);
-    for(size_t i=0; i < n_experts; ++i) {
-        expert_pool_gate.emplace_back(d_model / 32);
-        expert_pool_up.emplace_back(d_model / 32);
-        for(size_t j=0; j<d_model; ++j) temp[j] = dist(gen); nca::linalg::mx_quantize_w(temp.get(), expert_pool_gate[i]);
-        for(size_t j=0; j<d_model; ++j) temp[j] = dist(gen); nca::linalg::mx_quantize_w(temp.get(), expert_pool_up[i]);
-    }
+    // Legacy MoE / MX dependencies have been removed per Geometric Schema Migration
+}
 
-    halting_gate = nca::linalg::MXINT8Tensor(d_model / 32);
-    for(size_t j=0; j<d_model; ++j) temp[j] = dist(gen); nca::linalg::mx_quantize_w(temp.get(), halting_gate);
+void SiliconWeights::initialize_binary_curve(size_t m, size_t n) {
+    bct_m = m;
+    bct_n = n;
+    size_t num_masks = m * (n / 16);
+    binary_curve_masks = nca::simd::make_aligned_unique<uint16_t[]>(num_masks);
+    
+    std::mt19937 gen(1337);
+    std::uniform_int_distribution<uint16_t> dist(0, 65535);
+    for (size_t i = 0; i < num_masks; ++i) {
+        binary_curve_masks[i] = dist(gen);
+    }
+    bct_scale = 1.0f;
+    bct_offset = 0.0f;
 }
 
 SiliconWavefront::SiliconWavefront(size_t d_model) {

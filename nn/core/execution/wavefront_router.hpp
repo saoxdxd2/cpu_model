@@ -50,6 +50,9 @@ public:
 
     // Load compiled .geo graphs (Replaces Dense Weight Loading)
     void load_geometric_graph(const std::vector<std::vector<GeometricBranch>>& compiled_graph);
+    
+    // Initialize a default graph if no graph is loaded
+    void initialize_default_graph();
 
     // Execute Stochastic Pointer Chasing
     // Tracks up to `wavefront_width` parallel realities using _mm512_i32gather_epi32

@@ -5,7 +5,7 @@
 // ============================================================================
 
 #include <cstddef>
-#include "core/linalg/mx_linear.hpp"
+//#include "core/linalg/mx_linear.hpp"
 
 namespace nca::layers {
 
@@ -30,14 +30,14 @@ void ssm_step(
 
 // Fused SSM + Quantization for multimodal pipeline efficiency.
 // This is the "Horizontal Fusion" tweak to keep intermediate state in L1.
-void mx_fused_ssm_silu_quantize_step(
-    float* __restrict h,
-    const float* __restrict A,
-    const float* __restrict B,
-    const float* __restrict C,
-    const float* __restrict x,
-    nca::linalg::MXUINT8Tensor& y_q,
-    SSMConfig cfg
-);
+// void mx_fused_ssm_silu_quantize_step(
+//     float* __restrict h,
+//     const float* __restrict A,
+//     const float* __restrict B,
+//     const float* __restrict C,
+//     const float* __restrict x,
+//     nca::linalg::MXUINT8Tensor& y_q,
+//     SSMConfig cfg
+// );
 
 } // namespace nca::layers

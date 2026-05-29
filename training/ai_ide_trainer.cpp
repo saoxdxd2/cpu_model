@@ -40,7 +40,7 @@ public:
                 const float* char_emb = tokenizer_.get_char_embedding(chunk[i]);
                 
                 std::vector<float> response(81);
-                engine_->step(char_emb, nullptr, response.data());
+                engine_->step_geometric(char_emb, nullptr, response.data(), 0.0f);
                 
                 // Simulate cross-entropy loss between prediction and next char
                 // In production, we'd use a real backward pass on the expert pool

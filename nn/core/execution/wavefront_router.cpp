@@ -51,6 +51,25 @@ void WavefrontRouter::load_geometric_graph(const std::vector<std::vector<Geometr
     graph_offsets_[n_concepts_] = static_cast<uint32_t>(current_offset);
 }
 
+void WavefrontRouter::initialize_default_graph() {
+    total_branches_ = n_concepts_ * wavefront_width_;
+    flat_pointers_ = ::nca::simd::make_aligned_unique<uint32_t[]>(total_branches_);
+    flat_probs_    = ::nca::simd::make_aligned_unique<float[]>(total_branches_);
+    graph_offsets_ = ::nca::simd::make_aligned_unique<uint32_t[]>(n_concepts_ + 1);
+
+    size_t current_offset = 0;
+    for (size_t i = 0; i < n_concepts_; ++i) {
+        graph_offsets_[i] = static_cast<uint32_t>(current_offset);
+        for (size_t b = 0; b < wavefront_width_; ++b) {
+            // Identity/sink routing by default, or random
+            flat_pointers_[current_offset + b] = static_cast<uint32_t>((i + b) % n_concepts_);
+            flat_probs_[current_offset + b]    = 1.0f / wavefront_width_;
+        }
+        current_offset += wavefront_width_;
+    }
+    graph_offsets_[n_concepts_] = static_cast<uint32_t>(current_offset);
+}
+
 void WavefrontRouter::step_wavefront(float* state, float temperature) {
     // Double buffer the state to prevent out-of-order writes
     auto next_state = ::nca::simd::make_aligned_unique<float[]>(n_concepts_);

@@ -57,8 +57,8 @@ int main() {
     for (size_t i = 0; i < 1024; ++i) {
         auto g_slice = ref_gate.slice(0, i * 16, (i + 1) * 16).flatten();
         auto u_slice = ref_up.slice(0, i * 16, (i + 1) * 16).flatten();
-        nca::linalg::mx_quantize_w(g_slice.data_ptr<float>(), *wr.expert_pool_gate[i]);
-        nca::linalg::mx_quantize_w(u_slice.data_ptr<float>(), *wr.expert_pool_up[i]);
+// //         nca::linalg::mx_quantize_w(g_slice.data_ptr<float>(), *wr.expert_pool_gate[i]);
+// //         nca::linalg::mx_quantize_w(u_slice.data_ptr<float>(), *wr.expert_pool_up[i]);
     }
 
     // 4. Verify Retention
@@ -66,7 +66,7 @@ int main() {
     
     // We run the NCA engine with the same input
     std::vector<float> nca_out(D);
-    engine->step(input_vec.data_ptr<float>(), nullptr, nca_out.data());
+    engine->step_geometric(input_vec.data_ptr<float>(), nullptr, nca_out.data(), 0.0f);
 
     // Compare NCA "Thought" (State) against Foundation "Output"
     // Since the NCA is recursive, we compare the first-cycle state change

@@ -1,6 +1,5 @@
 #pragma once
 #include "core/simd/memory.hpp"
-#include "core/linalg/mx_linear.hpp"
 #include <vector>
 
 namespace nca::execution {
@@ -19,14 +18,17 @@ struct SiliconWeights {
     ::nca::simd::aligned_unique_ptr<float[]> glr_alpha;
     ::nca::simd::aligned_unique_ptr<float[]> glr_beta;
 
-    // SDMS Expert Pool
-    std::vector<::nca::linalg::MXINT8Tensor> expert_pool_gate;
-    std::vector<::nca::linalg::MXINT8Tensor> expert_pool_up;
-
-    // Control Gates
-    ::nca::linalg::MXINT8Tensor halting_gate;
+    // Legacy MoE / MX dependencies have been removed per Geometric Schema Migration
+    
+    // Binary Curve Tree (Transistor-Level Weights)
+    size_t bct_m = 0;
+    size_t bct_n = 0;
+    ::nca::simd::aligned_unique_ptr<uint16_t[]> binary_curve_masks;
+    float bct_scale = 1.0f;
+    float bct_offset = 0.0f;
 
     void initialize_unit_noise(size_t d_model, size_t n_experts);
+    void initialize_binary_curve(size_t m, size_t n);
 };
 
 /**

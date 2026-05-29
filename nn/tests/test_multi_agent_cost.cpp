@@ -40,7 +40,7 @@ int main() {
     auto t0 = std::chrono::high_resolution_clock::now();
     for (size_t i = 0; i < NUM_AGENTS; ++i) {
         // Zero-cost switch: just point the engine to a different slot in memory
-        engine->step_batch(nullptr, nullptr, response.data(), 1); 
+        engine->step_geometric(nullptr, nullptr, response.data(), 0.2f); 
     }
     auto t1 = std::chrono::high_resolution_clock::now();
 

@@ -31,7 +31,7 @@ public:
 
         // 1. REASONING PHASE: Plan the fix
         std::cout << "[1/4] Reasoning about workspace structure...\n";
-        engine_->step(nullptr, obs.data(), response.data()); // Use encoded vision from reset
+        engine_->step_geometric(nullptr, obs.data(), response.data(), 0.0f); // Use encoded vision from reset
         
         // 2. SCANNING PHASE: Find the target code
         std::cout << "[2/4] Scanning codebase for logical anomalies...\n";

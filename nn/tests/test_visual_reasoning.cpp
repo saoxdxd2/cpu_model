@@ -54,7 +54,7 @@ int main() {
     
     // We pass the RAW pixels directly to the engine. 
     // The engine's internal vision_encoder_ will handle the Scan+Prune.
-    engine.step(nullptr, pixels.data(), response.data());
+    engine.step_geometric(nullptr, pixels.data(), response.data(), 0.0f);
 
     // 5. Analysis
     std::cout << "[3/3] Response Analysis:\n";

@@ -5,7 +5,7 @@
 
 #include "core/simd/dispatch.hpp"
 #include "core/simd/memory.hpp"
-#include "core/linalg/mx_linear.hpp"
+//#include "core/linalg/mx_linear.hpp"
 #include "core/layers/ssm.hpp"
 #include "core/layers/sla.hpp"
 #include "core/layers/halting.hpp"
@@ -90,50 +90,50 @@ template <> struct ArgGen<std::span<const float>> {
     uint64_t hash() { return hash_bytes(p.get(), D * sizeof(float)); }
 };
 
-template <> struct ArgGen<nca::linalg::MXINT8Tensor&> {
-    nca::linalg::MXINT8Tensor t{D * D / 32};
-    void init(int seed) { if(t.data) { std::memset(t.data, seed % 127, t.num_blocks * 32); std::memset(t.scales, 1, t.num_blocks); std::memset(t.w_sums, 0, t.num_blocks * 4); } }
-    nca::linalg::MXINT8Tensor& get() { return t; }
-    uint64_t hash() { return hash_bytes(t.data, t.num_blocks * 32) ^ hash_bytes(t.scales, t.num_blocks); }
-};
-template <> struct ArgGen<const nca::linalg::MXINT8Tensor&> {
-    nca::linalg::MXINT8Tensor t{D * D / 32};
-    void init(int seed) { if(t.data) { std::memset(t.data, seed % 127, t.num_blocks * 32); std::memset(t.scales, 1, t.num_blocks); std::memset(t.w_sums, 0, t.num_blocks * 4); } }
-    const nca::linalg::MXINT8Tensor& get() { return t; }
-    uint64_t hash() { return hash_bytes(t.data, t.num_blocks * 32) ^ hash_bytes(t.scales, t.num_blocks); }
-};
-template <> struct ArgGen<nca::linalg::MXUINT8Tensor&> {
-    nca::linalg::MXUINT8Tensor t{D / 32};
-    void init(int seed) { if(t.data) { std::memset(t.data, 128, t.num_blocks * 32); std::memset(t.scales, 1, t.num_blocks); } }
-    nca::linalg::MXUINT8Tensor& get() { return t; }
-    uint64_t hash() { return hash_bytes(t.data, t.num_blocks * 32) ^ hash_bytes(t.scales, t.num_blocks); }
-};
-template <> struct ArgGen<const nca::linalg::MXUINT8Tensor&> {
-    nca::linalg::MXUINT8Tensor t{D / 32};
-    void init(int seed) { if(t.data) { std::memset(t.data, 128, t.num_blocks * 32); std::memset(t.scales, 1, t.num_blocks); } }
-    const nca::linalg::MXUINT8Tensor& get() { return t; }
-    uint64_t hash() { return hash_bytes(t.data, t.num_blocks * 32) ^ hash_bytes(t.scales, t.num_blocks); }
-};
-
-template <> struct ArgGen<const nca::linalg::MXINT8Tensor*> {
-    std::vector<nca::linalg::MXINT8Tensor> ts;
-    ArgGen() { for(int i=0; i<16; ++i) ts.emplace_back(D/32); }
-    void init(int seed) { for(auto& t : ts) { if(t.data) std::memset(t.data, seed % 127, t.num_blocks*32); if(t.scales) std::memset(t.scales, 1, t.num_blocks); if(t.w_sums) std::memset(t.w_sums, 0, t.num_blocks*4); } }
-    const nca::linalg::MXINT8Tensor* get() { return ts.data(); }
-    uint64_t hash() { uint64_t h = 0; for(auto& t : ts) h ^= hash_bytes(t.data, t.num_blocks*32); return h; }
-};
-
-template <> struct ArgGen<const nca::linalg::MXINT8Tensor**> {
-    std::vector<nca::linalg::MXINT8Tensor> ts;
-    std::vector<const nca::linalg::MXINT8Tensor*> ptrs;
-    ArgGen() {
-        for(int i=0; i<16; ++i) ts.emplace_back(D/32);
-        for(int i=0; i<16; ++i) ptrs.push_back(&ts[i]);
-    }
-    void init(int seed) { for(auto& t : ts) { if(t.data) std::memset(t.data, seed % 127, t.num_blocks*32); if(t.scales) std::memset(t.scales, 1, t.num_blocks); if(t.w_sums) std::memset(t.w_sums, 0, t.num_blocks*4); } }
-    const nca::linalg::MXINT8Tensor** get() { return ptrs.data(); }
-    uint64_t hash() { uint64_t h = 0; for(auto& t : ts) h ^= hash_bytes(t.data, t.num_blocks*32); return h; }
-};
+// template <> struct ArgGen<nca::linalg::MXINT8Tensor&> {
+//     nca::linalg::MXINT8Tensor t{D * D / 32};
+//     void init(int seed) { if(t.data) { std::memset(t.data, seed % 127, t.num_blocks * 32); std::memset(t.scales, 1, t.num_blocks); std::memset(t.w_sums, 0, t.num_blocks * 4); } }
+//     nca::linalg::MXINT8Tensor& get() { return t; }
+//     uint64_t hash() { return hash_bytes(t.data, t.num_blocks * 32) ^ hash_bytes(t.scales, t.num_blocks); }
+// };
+// template <> struct ArgGen<const nca::linalg::MXINT8Tensor&> {
+//     nca::linalg::MXINT8Tensor t{D * D / 32};
+//     void init(int seed) { if(t.data) { std::memset(t.data, seed % 127, t.num_blocks * 32); std::memset(t.scales, 1, t.num_blocks); std::memset(t.w_sums, 0, t.num_blocks * 4); } }
+//     const nca::linalg::MXINT8Tensor& get() { return t; }
+//     uint64_t hash() { return hash_bytes(t.data, t.num_blocks * 32) ^ hash_bytes(t.scales, t.num_blocks); }
+// };
+// template <> struct ArgGen<nca::linalg::MXUINT8Tensor&> {
+//     nca::linalg::MXUINT8Tensor t{D / 32};
+//     void init(int seed) { if(t.data) { std::memset(t.data, 128, t.num_blocks * 32); std::memset(t.scales, 1, t.num_blocks); } }
+//     nca::linalg::MXUINT8Tensor& get() { return t; }
+//     uint64_t hash() { return hash_bytes(t.data, t.num_blocks * 32) ^ hash_bytes(t.scales, t.num_blocks); }
+// };
+// template <> struct ArgGen<const nca::linalg::MXUINT8Tensor&> {
+//     nca::linalg::MXUINT8Tensor t{D / 32};
+//     void init(int seed) { if(t.data) { std::memset(t.data, 128, t.num_blocks * 32); std::memset(t.scales, 1, t.num_blocks); } }
+//     const nca::linalg::MXUINT8Tensor& get() { return t; }
+//     uint64_t hash() { return hash_bytes(t.data, t.num_blocks * 32) ^ hash_bytes(t.scales, t.num_blocks); }
+// };
+// 
+// template <> struct ArgGen<const nca::linalg::MXINT8Tensor*> {
+//     std::vector<nca::linalg::MXINT8Tensor> ts;
+//     ArgGen() { for(int i=0; i<16; ++i) ts.emplace_back(D/32); }
+//     void init(int seed) { for(auto& t : ts) { if(t.data) std::memset(t.data, seed % 127, t.num_blocks*32); if(t.scales) std::memset(t.scales, 1, t.num_blocks); if(t.w_sums) std::memset(t.w_sums, 0, t.num_blocks*4); } }
+//     const nca::linalg::MXINT8Tensor* get() { return ts.data(); }
+//     uint64_t hash() { uint64_t h = 0; for(auto& t : ts) h ^= hash_bytes(t.data, t.num_blocks*32); return h; }
+// };
+// 
+// template <> struct ArgGen<const nca::linalg::MXINT8Tensor**> {
+//     std::vector<nca::linalg::MXINT8Tensor> ts;
+//     std::vector<const nca::linalg::MXINT8Tensor*> ptrs;
+//     ArgGen() {
+//         for(int i=0; i<16; ++i) ts.emplace_back(D/32);
+//         for(int i=0; i<16; ++i) ptrs.push_back(&ts[i]);
+//     }
+//     void init(int seed) { for(auto& t : ts) { if(t.data) std::memset(t.data, seed % 127, t.num_blocks*32); if(t.scales) std::memset(t.scales, 1, t.num_blocks); if(t.w_sums) std::memset(t.w_sums, 0, t.num_blocks*4); } }
+//     const nca::linalg::MXINT8Tensor** get() { return ptrs.data(); }
+//     uint64_t hash() { uint64_t h = 0; for(auto& t : ts) h ^= hash_bytes(t.data, t.num_blocks*32); return h; }
+// };
 
 template <> struct ArgGen<size_t> {
     void init(int) {}
