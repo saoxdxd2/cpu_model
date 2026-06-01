@@ -10,7 +10,7 @@
 
 using namespace nca::deployment;
 
-#include "deployment/silicon_ui.hpp"
+#include "agentic_env/vscode_env.hpp"
 
 using namespace nca::deployment;
 
@@ -26,7 +26,7 @@ struct AgentSession {
  */
 class AetherGateway {
 public:
-    AetherGateway(size_t obs_dim = 1616, size_t act_dim = 80) : ui_(nullptr) {
+    AetherGateway(size_t obs_dim = 1616, size_t act_dim = 80) : vscode_env_(nullptr) {
         std::cout << "[GATEWAY] Unifying Silicon Bus (Zero-Node Refactor)...\n";
         engine_ = nca_engine_create(obs_dim, act_dim);
         peripherals_ = std::make_unique<PeripheralBridge>();
@@ -46,9 +46,12 @@ public:
             std::cout << "[SILICON_BUS] Received: " << cmd << "\n";
             
             if (cmd.find("START_IDE") != std::string::npos) {
-                if (!ui_) {
-                    std::cout << "  [GATEWAY] Dashboard Command: LAUNCHING NATIVE IDE...\n";
-                    ui_ = std::make_unique<SiliconUI>("NCA Aether IDE - Saturated Silicon Ground");
+                if (!vscode_env_) {
+                    std::cout << "  [GATEWAY] Dashboard Command: BINDING TO VSCODE ENVIRONMENT...\n";
+                    vscode_env_ = std::make_unique<nca::env::VSCodeEnv>("../../../vscode");
+                    
+                    // Actually launch the IDE so the user sees it, but hide the batch script console
+                    system("powershell -WindowStyle Hidden -Command \"Start-Process cmd -ArgumentList '/c code ../../../vscode' -WindowStyle Hidden\"");
                 }
             }
 
@@ -59,9 +62,11 @@ public:
             }
         }
 
-        // 2. Render Native UI if active
-        if (ui_) {
-            ui_->render();
+        // 2. Step the VSCode Environment if active
+        if (vscode_env_) {
+            float dummy_action[5] = {1.0f, 0.0f, 0.0f, 0.0f, 0.0f}; // Idle action
+            float obs[1616];
+            vscode_env_->step(dummy_action, obs);
         }
 
         // 3. Real Telemetry Broadcast
@@ -82,7 +87,7 @@ private:
     nca_engine_ptr engine_;
     std::unique_ptr<PeripheralBridge> peripherals_;
     std::unique_ptr<AetherSocket> bus_;
-    std::unique_ptr<SiliconUI> ui_;
+    std::unique_ptr<nca::env::VSCodeEnv> vscode_env_;
     std::map<uint32_t, AgentSession> sessions_;
 };
 

@@ -21,32 +21,28 @@ try {
     execSync('cmake --build build --config Release', { stdio: 'inherit' });
     console.log("\n[OK] Build Saturated.");
 
-    // 3. Launch Aether Dashboard (In background)
-    console.log("\n[2/3] Launching Aether Dashboard (Control Interface)...");
-    spawn('npm', ['start'], {
-        cwd: path.join(__dirname, 'dashboard'),
-        shell: true,
-        stdio: 'ignore', // Don't clutter the console
-        detached: true
-    }).unref();
-
-    // 4. Launch Aether AI IDE Ground
-    console.log("\n[3/3] Launching Aether Silicon Host...");
+    // 3. Launch Aether Silicon Host (Backend AI Model)
+    console.log("\n[2/3] Launching Aether Silicon Host in background...");
     const bootstrapperPath = path.join(buildDir, 'deployment', 'Release', 'Aether_AI_IDE.exe');
     
     if (!fs.existsSync(bootstrapperPath)) {
         throw new Error("Bootstrapper binary missing after build!");
     }
 
-    // Spawn the bootstrapper as a detached process
-    const child = spawn(bootstrapperPath, [], {
-        detached: true,
-        stdio: 'inherit',
-        cwd: path.dirname(bootstrapperPath)
-    });
+    const gatewayVbs = `CreateObject("WScript.Shell").Run "cmd /c cd ""${path.dirname(bootstrapperPath)}"" && ""${bootstrapperPath}""", 0, False`;
+    fs.writeFileSync(path.join(buildDir, 'run_gateway.vbs'), gatewayVbs);
+    execSync(`wscript "${path.join(buildDir, 'run_gateway.vbs')}"`);
     
-    child.unref();
-    console.log("[SUCCESS] Aether Pipeline dispatched. Control via Dashboard at localhost:3000.\n");
+    // 4. Launch VSCode Environment
+    console.log("\n[3/3] Launching VSCode IDE Environment...");
+    const vscodePath = path.join(__dirname, 'aether-agent');
+    spawn('code', [vscodePath], {
+        detached: true,
+        stdio: 'ignore',
+        shell: true
+    }).unref();
+    
+    console.log("[SUCCESS] Aether Pipeline dispatched. VSCode IDE is now opening.\n");
     process.exit(0);
 
 } catch (error) {

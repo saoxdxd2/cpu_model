@@ -39,7 +39,7 @@ add_executable(test_autonomous_dev test_autonomous_dev.cpp)
 target_link_libraries(test_autonomous_dev nca_deploy nca_encoding agentic_env)
 
 add_executable(aether_gateway aether_gateway.cpp peripheral_bridge.cpp)
-target_link_libraries(aether_gateway nca_deploy nca_encoding)
+target_link_libraries(aether_gateway nca_deploy nca_encoding agentic_env)
 
 add_executable(Aether_AI_IDE bootstrapper.cpp)
 target_link_libraries(Aether_AI_IDE nca_deploy)
