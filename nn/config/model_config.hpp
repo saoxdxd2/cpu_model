@@ -42,11 +42,13 @@ enum class LogicBackend {
     HashedRouter,
     SpectralRLS,
     SpectralRoutedExperts,
-    SDMS_Predictive // v11.0 Unified Saliency-Driven
+    SDMS_Predictive,       // v11.0 Unified Saliency-Driven
+    CENTAUR_Compiled       // v12.0 Hardware-Adaptive Execution Engine
 };
 
 struct EngineConfig {
     LogicBackend logic_backend = LogicBackend::HashedRouter;
+    bool centaur_verbose = false;  // Print CENTAUR compilation diagnostics
 };
 
 } // namespace nca::config

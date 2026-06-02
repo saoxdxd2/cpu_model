@@ -1,27 +1,30 @@
 #pragma once
 // ============================================================================
-// NCA -- Compile-Time Cache Policy Engine
+// NCA -- Cache Policy Engine
 // core/simd/cache_policy.hpp
 //
-// The Triton/XLA trick for CPU: compute the optimal tiling strategy,
-// prefetch distance, and store policy at COMPILE TIME via constexpr.
-// Zero branches at runtime. The compiler emits ONLY the optimal path.
+// Two modes:
+//   1. COMPILE-TIME (original): CachePolicy<WorkingSetBytes>
+//      Uses conservative defaults. Zero branches at runtime.
+//      Best when working set is known at compile time.
 //
-// Usage:
-//   constexpr auto policy = nca::simd::cache_policy<WorkingSetBytes>();
-//   policy.tile_size   -- how many elements per L1 tile
-//   policy.prefetch_dist -- how far ahead to prefetch (in cache lines)
-//   policy.Strategy    -- L1_HOT / L2_STREAM / DDR4_NT
+//   2. RUNTIME (CENTAUR): RuntimeCachePolicy
+//      Uses actual cache sizes probed via CPUID.
+//      Best when working set depends on model config.
+//
+// Both coexist — existing kernels using CachePolicy<> are unchanged.
 // ============================================================================
 
 #include <cstddef>
 
 namespace nca::simd {
 
-// Ice Lake i5-1035G1 cache hierarchy (per-core, exact)
-inline constexpr size_t L1_SIZE   = 32 * 1024;   // 32 KB L1d
-inline constexpr size_t L2_SIZE   = 256 * 1024;   // 256 KB L2
-inline constexpr size_t L3_SIZE   = 6 * 1024 * 1024; // 6 MB L3 shared
+// ── Conservative compile-time defaults ──────────────────────────────────────
+// These are lower bounds that work on ANY modern x86.
+// CENTAUR runtime queries override these with actual values.
+inline constexpr size_t L1_SIZE   = 32 * 1024;     // Conservative L1d
+inline constexpr size_t L2_SIZE   = 256 * 1024;    // Conservative L2
+inline constexpr size_t L3_SIZE   = 6 * 1024 * 1024; // Conservative L3
 inline constexpr size_t CACHE_LINE = 64;
 
 enum class CacheStrategy : int {
@@ -30,7 +33,7 @@ enum class CacheStrategy : int {
     DDR4_NT       // Working set exceeds L2 → tile for L1, NT stores for write-only
 };
 
-// Compile-time policy: given a working set in bytes, compute the optimal strategy.
+// ── COMPILE-TIME POLICY (original, backward-compatible) ─────────────────────
 template <size_t WorkingSetBytes>
 struct CachePolicy {
     static constexpr CacheStrategy strategy =
@@ -38,28 +41,66 @@ struct CachePolicy {
         (WorkingSetBytes <= L2_SIZE)     ? CacheStrategy::L2_STREAM :
                                           CacheStrategy::DDR4_NT;
 
-    // Tile size: how many CACHE LINES fit in half of L1 (leave room for registers)
-    // For L1_HOT: no tiling needed (everything fits)
-    // For L2_STREAM: tile to fill L1 with prefetched data
-    // For DDR4_NT: tile aggressively to keep hot data in L1
     static constexpr size_t tile_lines =
         (strategy == CacheStrategy::L1_HOT) ? WorkingSetBytes / CACHE_LINE :
         L1_SIZE / (2 * CACHE_LINE);
 
-    // Prefetch distance in cache lines
     static constexpr size_t prefetch_dist =
         (strategy == CacheStrategy::L1_HOT)   ? 0 :
         (strategy == CacheStrategy::L2_STREAM) ? 4 :
                                                   8;
 
-    // Whether to use non-temporal stores for write-only buffers
     static constexpr bool use_nt_stores = (strategy == CacheStrategy::DDR4_NT);
 
-    // Human-readable name for diagnostics
     static constexpr const char* name() {
         if constexpr (strategy == CacheStrategy::L1_HOT)   return "L1_HOT";
         if constexpr (strategy == CacheStrategy::L2_STREAM) return "L2_STREAM";
         return "DDR4_NT";
+    }
+};
+
+// ── RUNTIME POLICY (CENTAUR-backed) ─────────────────────────────────────────
+// Queries actual cache sizes at runtime. Use when working set is dynamic.
+struct RuntimeCachePolicy {
+    CacheStrategy strategy;
+    size_t tile_lines;
+    size_t prefetch_dist;
+    bool   use_nt_stores;
+
+    // Construct from actual cache sizes + working set
+    static RuntimeCachePolicy compute(
+        size_t working_set_bytes,
+        size_t l1_size,
+        size_t l2_size,
+        size_t cache_line = 64
+    ) {
+        RuntimeCachePolicy p{};
+        if (working_set_bytes <= l1_size / 2) {
+            p.strategy      = CacheStrategy::L1_HOT;
+            p.tile_lines    = working_set_bytes / cache_line;
+            p.prefetch_dist = 0;
+            p.use_nt_stores = false;
+        } else if (working_set_bytes <= l2_size) {
+            p.strategy      = CacheStrategy::L2_STREAM;
+            p.tile_lines    = l1_size / (2 * cache_line);
+            p.prefetch_dist = 4;
+            p.use_nt_stores = false;
+        } else {
+            p.strategy      = CacheStrategy::DDR4_NT;
+            p.tile_lines    = l1_size / (2 * cache_line);
+            p.prefetch_dist = 8;
+            p.use_nt_stores = true;
+        }
+        return p;
+    }
+
+    const char* name() const {
+        switch (strategy) {
+            case CacheStrategy::L1_HOT:   return "L1_HOT";
+            case CacheStrategy::L2_STREAM: return "L2_STREAM";
+            case CacheStrategy::DDR4_NT:  return "DDR4_NT";
+        }
+        return "UNKNOWN";
     }
 };
 

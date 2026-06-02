@@ -147,3 +147,8 @@ target_compile_options(test_geometric_wavefront PRIVATE /arch:AVX512 /O2 /fp:fas
 add_executable(test_geometric_randomness test_geometric_randomness.cpp)
 target_include_directories(test_geometric_randomness PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
 target_compile_options(test_geometric_randomness PRIVATE /arch:AVX512 /O2 /fp:fast)
+
+# ── CENTAUR — Hardware-Adaptive Execution Engine ─────────────────────────────
+add_executable(test_centaur ${CMAKE_SOURCE_DIR}/core/centaur/test_centaur.cpp)
+target_include_directories(test_centaur PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
+target_compile_options(test_centaur PRIVATE /arch:AVX512 /O2 /fp:fast)

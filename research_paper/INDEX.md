@@ -40,6 +40,10 @@ This directory contains the exhaustive technical documentation for the NCA Aethe
 *   **AVX-512 Wavefront Router**: Stochastic pointer chasing with zero-cost Xorshift exploration.
 *   **Deep Recursion Proof**: 30-hop signal preservation vs. Dense Matrix noise diffusion.
 *   **Migration Plan**: [GEOMETRIC_SCHEMA_MIGRATION.md](GEOMETRIC_SCHEMA_MIGRATION.md)
+### Volume VIII: [Continuous-Discrete Unification](CONTINUOUS_DISCRETE_UNIFICATION.md)
+*   **The Phase-Collapse Routing Manifold (PCRM)**: Eliminating W_up via Boolean hypercube embedding.
+*   **Binary Curve Tree (BCT) Experts**: Bypassing FP32 multipliers with IEEE-754 XOR logic.
+*   **Topological Hardware Saturation**: Achieving 9.13x throughput and 32x memory compression.
 
 ---
-*Document Class: Saturated Silicon Standard (v2.0 — Geometric Schema)*
+*Document Class: Saturated Silicon Standard (v2.1 — Continuous-Discrete Unification)*
