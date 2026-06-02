@@ -12,7 +12,7 @@ node_modules/
 *.lib
 *.pdb
 *.exp
-
+.env
 # Large Data & Foundation Models (Do not push to Git)
 *.gguf
 *.pt
