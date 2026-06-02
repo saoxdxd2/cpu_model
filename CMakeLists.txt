@@ -11,10 +11,7 @@ find_package(Torch REQUIRED)
 
 # 2. Sub-Modules
 # Note: We build in a specific order to satisfy dependencies
-add_subdirectory(encoding)
 add_subdirectory(nn)
-add_subdirectory(agentic_env)
-add_subdirectory(training)
 add_subdirectory(deployment)
 
 # 3. Global Configuration

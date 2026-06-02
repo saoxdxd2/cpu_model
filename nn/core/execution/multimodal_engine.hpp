@@ -5,8 +5,7 @@
 // ============================================================================
 
 #include "core/simd/memory.hpp"
-#include "encoding/state_encoder.hpp"
-#include "encoding/vision_encoder.hpp"
+
 #include "core/spectral/kronecker_rls.hpp"
 #include "config/model_config.hpp"
 #include "nn/core/execution/silicon_memory.hpp"
@@ -61,8 +60,6 @@ private:
     
     std::unique_ptr<::nca::execution::WavefrontRouter> geometric_router_;
     
-    ::nca::encoding::SiliconEncoder encoder_;
-    ::nca::encoding::SiliconVisionEncoder vision_encoder_;
 
     std::unique_ptr<::nca::spectral::KroneckerRLSState> spectral_rls_;
 };

@@ -15,7 +15,7 @@ include_directories(
 )
 
 # NCA Libraries (using target names from unified build)
-set(NCA_LIBS nca_core agentic_env nca_encoding ${TORCH_LIBRARIES})
+set(NCA_LIBS nca_core ${TORCH_LIBRARIES})
 
 add_executable(offline_trainer 
     offline_trainer.cpp 

@@ -20,10 +20,7 @@ add_custom_command(
     COMMENT "Generating C++ auto-profiler..."
 )
 
-add_executable(test_gup test_gup.cpp)
-target_include_directories(test_gup PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
-target_link_libraries(test_gup PRIVATE nca_core nca_deploy agentic_env "${TORCH_LIBRARIES}")
-target_compile_options(test_gup PRIVATE /arch:AVX512 /O2 /fp:fast)
+
 
 # ── Spectral Logic Tests (v7.0) ───────────────────────────────────────────────
 add_executable(test_spectral ${CMAKE_CURRENT_SOURCE_DIR}/test_spectral.cpp)
@@ -67,68 +64,7 @@ target_include_directories(test_torch_integration PRIVATE ${CMAKE_SOURCE_DIR})
 target_link_libraries(test_torch_integration PRIVATE nca_core "${TORCH_LIBRARIES}")
 target_compile_options(test_torch_integration PRIVATE /arch:AVX512 /O2 /fp:fast)
 
-add_executable(test_full_response test_full_response.cpp)
-target_include_directories(test_full_response PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
-target_link_libraries(test_full_response PRIVATE nca_core agentic_env "${TORCH_LIBRARIES}")
 
-add_executable(test_visual_reasoning test_visual_reasoning.cpp)
-target_include_directories(test_visual_reasoning PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
-target_link_libraries(test_visual_reasoning PRIVATE nca_core nca_encoding "${TORCH_LIBRARIES}")
-
-add_executable(test_agentic_cli test_agentic_cli.cpp)
-target_include_directories(test_agentic_cli PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
-target_link_libraries(test_agentic_cli PRIVATE nca_core agentic_env "${TORCH_LIBRARIES}")
-
-add_executable(test_silicon_writing test_silicon_writing.cpp)
-target_include_directories(test_silicon_writing PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
-target_link_libraries(test_silicon_writing PRIVATE nca_core agentic_env nca_encoding "${TORCH_LIBRARIES}")
-
-add_executable(test_multi_agent_cost test_multi_agent_cost.cpp)
-target_include_directories(test_multi_agent_cost PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
-target_link_libraries(test_multi_agent_cost PRIVATE nca_core agentic_env nca_encoding "${TORCH_LIBRARIES}")
-
-add_executable(test_silicon_swarm test_silicon_swarm.cpp)
-target_include_directories(test_silicon_swarm PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
-target_link_libraries(test_silicon_swarm PRIVATE nca_core agentic_env nca_encoding "${TORCH_LIBRARIES}")
-
-add_executable(test_intelligence_audit test_intelligence_audit.cpp)
-target_include_directories(test_intelligence_audit PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
-target_link_libraries(test_intelligence_audit PRIVATE nca_core agentic_env nca_encoding "${TORCH_LIBRARIES}")
-
-add_executable(test_memory_compression test_memory_compression.cpp)
-target_include_directories(test_memory_compression PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
-target_link_libraries(test_memory_compression PRIVATE nca_core agentic_env nca_encoding "${TORCH_LIBRARIES}")
-
-add_executable(test_freedom_refactor test_freedom_refactor.cpp)
-target_include_directories(test_freedom_refactor PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
-target_link_libraries(test_freedom_refactor PRIVATE nca_core agentic_env nca_encoding "${TORCH_LIBRARIES}")
-
-add_executable(test_memory_localization test_memory_localization.cpp)
-target_include_directories(test_memory_localization PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
-target_link_libraries(test_memory_localization PRIVATE nca_core agentic_env nca_encoding "${TORCH_LIBRARIES}")
-
-add_executable(test_silicon_ui test_silicon_ui.cpp)
-target_include_directories(test_silicon_ui PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
-target_link_libraries(test_silicon_ui PRIVATE nca_deploy nca_core)
-
-add_executable(test_silicon_indexer test_silicon_indexer.cpp)
-target_include_directories(test_silicon_indexer PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
-target_link_libraries(test_silicon_indexer PRIVATE nca_core agentic_env nca_encoding "${TORCH_LIBRARIES}")
-
-add_executable(test_zero_error_integration test_zero_error_integration.cpp)
-target_include_directories(test_zero_error_integration PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
-target_link_libraries(test_zero_error_integration PRIVATE nca_deploy nca_core nca_encoding agentic_env "${TORCH_LIBRARIES}")
-
-add_executable(test_stability_audit test_stability_audit.cpp)
-target_include_directories(test_stability_audit PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
-target_link_libraries(test_stability_audit PRIVATE nca_core agentic_env nca_encoding "${TORCH_LIBRARIES}")
-
-add_executable(test_final_hardening test_final_hardening.cpp)
-target_include_directories(test_final_hardening PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
-target_link_libraries(test_final_hardening PRIVATE nca_deploy nca_core nca_encoding agentic_env "${TORCH_LIBRARIES}")
-
-target_compile_options(test_full_response PRIVATE /arch:AVX512 /O2 /fp:fast)
-target_compile_options(test_visual_reasoning PRIVATE /arch:AVX512 /O2 /fp:fast)
 
 # ── Geometric Schema Proofs ──────────────────────────────────────────────────
 add_executable(test_geometric_schema_benchmark test_geometric_schema_benchmark.cpp)
@@ -148,7 +84,4 @@ add_executable(test_geometric_randomness test_geometric_randomness.cpp)
 target_include_directories(test_geometric_randomness PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
 target_compile_options(test_geometric_randomness PRIVATE /arch:AVX512 /O2 /fp:fast)
 
-# ── CENTAUR — Hardware-Adaptive Execution Engine ─────────────────────────────
-add_executable(test_centaur ${CMAKE_SOURCE_DIR}/core/centaur/test_centaur.cpp)
-target_include_directories(test_centaur PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/..)
-target_compile_options(test_centaur PRIVATE /arch:AVX512 /O2 /fp:fast)
+

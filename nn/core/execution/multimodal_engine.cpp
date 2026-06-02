@@ -71,8 +71,8 @@ void MultimodalEngine::step_swarm(const float* initial_input, float* swarm_out, 
 
 void MultimodalEngine::step_geometric_env(const float* obs_in, float* out, float temperature) {
     const size_t D = nca::config::D_MODEL;
-    alignas(64) float latent[2048];
-    encoder_.encode(obs_in, latent, D);
+    alignas(64) float latent[2048] = {0.0f};
+    // encoder_.encode(obs_in, latent, D);
     step_geometric(latent, nullptr, out, temperature);
 }
 
@@ -98,7 +98,7 @@ void MultimodalEngine::step_geometric(const float* text_in, const float* image_i
     }
     
     if (image_in) {
-        vision_encoder_.encode_gui(image_in, primary_wavefront_->prediction_buf.get(), D);
+        // vision_encoder_.encode_gui(image_in, primary_wavefront_->prediction_buf.get(), D);
         float gate = text_in ? (1.0f + std::tanh(text_in[0])) : 0.1f;
         __m512 v_gate = _mm512_set1_ps(gate);
         __m512 v_hi = _mm512_set1_ps(10.0f), v_lo = _mm512_set1_ps(-10.0f);
