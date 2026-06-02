@@ -12,7 +12,6 @@ find_package(Torch REQUIRED)
 # 2. Sub-Modules
 # Note: We build in a specific order to satisfy dependencies
 add_subdirectory(nn)
-add_subdirectory(deployment)
 
 # 3. Global Configuration
 if(MSVC)

@@ -1,6 +1,6 @@
-# Nano-Core Architecture (NCA): Multi-Volume Technical Disclosure
+# CENTAUR Architecture: Multi-Volume Technical Disclosure
 
-This directory contains the exhaustive technical documentation for the NCA Aether Pipeline. Each volume details a specific architectural layer, from fundamental mathematics to hardware-level implementation.
+This directory contains the exhaustive technical documentation for the CENTAUR Engine. Each volume details a specific architectural layer, from fundamental mathematics to hardware-level implementation.
 
 ## Table of Contents
 
@@ -12,38 +12,40 @@ This directory contains the exhaustive technical documentation for the NCA Aethe
 
 ### Volume II: [Hardware Saturation](HARDWARE_SATURATION.md)
 *   **AVX-512 VNNI Pipeline**: Integer-saturated throughput calculations.
-*   **Zero-Allocation Hot-Path**: Eliminating heap jitter in $O(1)$ cycles.
+*   **Zero-Allocation Hot-Path**: Heapless, pointer-free static memory layout.
 *   **L1-Cache Tiling**: Memory bandwidth optimization for Replay Surface.
 *   **SIMD SwiGLU Fusion**: Hard-wiring activations to silicon ports.
 
 ### Volume III: [Bit-Level Intelligence](BIT_LEVEL_INTELLIGENCE.md)
-*   **The Silicon Encoder**: Scan+Prune logic for raw observations.
+*   **Deprecation of Multimodal Encoders**: Streamlining the execution graph.
 *   **Saliency Tokenization**: Mapping alphabet primitives to thought anchors.
-*   **Contextual Gating**: Cross-modal modulation of vision via code-bits.
+*   **Strictly Static Layout**: Eliminating dynamic routing overhead.
 
 ### Volume IV: [Silicon Swarm & Scaling](SILICON_SWARM.md)
 *   **Multi-Agent Session Management**: Shared-weight concurrency.
 *   **Chained Recurrence**: Wavefront mobility across agent slots.
 *   **Adaptive Computation Time (ACT)**: Halting probability and swarm expansion.
 
-### Volume V: [Agentic Grounding (AI IDE)](AGENTIC_IDE.md)
-*   **VSCode Sandbox Integration**: Real-world filesystem mapping.
-*   **CLI Bridge**: Closed-loop terminal ingestion and feedback.
-*   **Silicon Writing**: Surgical code-patching via thought-to-ASCII translation.
+### Volume V: [Agentic Loop Engineering](AGENTIC_IDE.md)
+*   **High-Throughput Pipeline**: CPU-native agentic loop integration.
+*   **Zero-Copy Tensor Operations**: Memory-safe adaptations.
+*   **C++ Simulator Loop**: Reliable end-to-end training throughput.
 
 ### Volume VI: [Intelligence Audit](BENCHMARK_REPORT.md)
 *   **Global Benchmarking**: GSM8K, HumanEval, and Agentic Success rates.
-*   **Fidelity Comparison**: Performance vs. original Gemma-4 foundation.
+*   **Fidelity Comparison**: Performance vs. original foundation.
 
 ### Volume VII: [Geometric Schema & Wavefront Routing](GEOMETRIC_SCHEMA.md)
-*   **Transformer-to-Geometric Compiler**: GGUF → Top-16 Structural Branch Distillation.
-*   **AVX-512 Wavefront Router**: Stochastic pointer chasing with zero-cost Xorshift exploration.
-*   **Deep Recursion Proof**: 30-hop signal preservation vs. Dense Matrix noise diffusion.
+*   **Transformer-to-Geometric Compiler**: Structural Branch Distillation.
+*   **AVX-512 Wavefront Router**: Stochastic pointer chasing.
+*   **Deep Recursion Proof**: Signal preservation vs. Dense Matrix noise.
 *   **Migration Plan**: [GEOMETRIC_SCHEMA_MIGRATION.md](GEOMETRIC_SCHEMA_MIGRATION.md)
+
 ### Volume VIII: [Continuous-Discrete Unification](CONTINUOUS_DISCRETE_UNIFICATION.md)
-*   **The Phase-Collapse Routing Manifold (PCRM)**: Eliminating W_up via Boolean hypercube embedding.
+*   **Bipolar Phase-Collapse Router (BPCR)**: Eliminating W_up via Boolean hypercube embedding.
 *   **Binary Curve Tree (BCT) Experts**: Bypassing FP32 multipliers with IEEE-754 XOR logic.
-*   **Topological Hardware Saturation**: Achieving 9.13x throughput and 32x memory compression.
+*   **Topological Hardware Saturation**: Achieving extreme throughput and memory compression.
+*   **Binary Weight Execution**: [curve_weight_analysis.md](curve_weight_analysis.md)
 
 ---
-*Document Class: Saturated Silicon Standard (v2.1 — Continuous-Discrete Unification)*
+*Document Class: Saturated Silicon Standard (v3.0 — CENTAUR Unification)*

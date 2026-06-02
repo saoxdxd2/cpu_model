@@ -3,7 +3,7 @@
 ## Abstract
 Modern neural network execution on CPU hardware is bottlenecked by a fundamental mathematical misalignment: the continuous nature of floating-point arithmetic conflicts with the discrete, combinatorial nature of memory routing and associative lookup. In Mixture of Experts (MoE) architectures, this creates a topological singularity during the "Top-K" sorting phase and results in massive memory bandwidth saturation from dense FP32 execution. 
 
-We present a unified Continuous-Discrete architecture that resolves this boundary at the physics level of the CPU. By redefining routing as a dynamical collapse onto a Boolean hypercube ($\mathbb{Z}_2^B$) and replacing floating-point expert matrices with IEEE-754 Binary Curve Trees (BCT), we achieve a 9.13x execution throughput acceleration and a 32x reduction in expert memory footprint, saturating AVX-512 execution ports without relying on integer quantization.
+We present a unified Continuous-Discrete architecture for the CENTAUR Engine that resolves this boundary at the physics level of the CPU. By redefining routing as a dynamical collapse onto a Boolean hypercube ($\mathbb{Z}_2^B$) and replacing floating-point expert matrices with IEEE-754 Binary Curve Trees (BCT), we achieve a 9.13x execution throughput acceleration and a 32x reduction in expert memory footprint, saturating AVX-512 execution ports without relying on integer quantization.
 
 ---
 
@@ -42,7 +42,10 @@ The substitution of dense multiplication with IEEE-754 XOR accumulation yielded 
 
 The entire expert pool, which previously saturated DRAM limits, now comfortably fits within the processor's L3 cache.
 
+## 3. Differentiability in Training & Convergence Challenges
+The BCT experts utilize XOR-based Phase-Collapse execution, which is exceptionally fast but notoriously discontinuous. While offline Proximal Policy Optimization (PPO) or Evolutionary Algorithms can theoretically train these discrete gates, propagating reliable gradients back through the `_mm512_cmp_ps_mask` routing logic remains the primary mathematical hurdle for achieving stable convergence during training. Research into continuous relaxation methods for this boundary is ongoing.
+
 ---
 
 ## 3. Conclusion
-We have derived a pure physical embodiment of continuous-discrete neural intelligence. By treating discrete logic states as continuous mathematical attractors, we force the physics of the neural network to strictly align with the architectural gates of the CPU hardware. The unification of PCRM routing and BCT expert logic effectively eradicates memory bottlenecks, achieving order-of-magnitude gains in computational density.
+We have derived a pure physical embodiment of continuous-discrete neural intelligence. By treating discrete logic states as continuous mathematical attractors, we force the physics of the neural network to strictly align with the architectural gates of the CPU hardware. The unification of PCRM routing and BCT expert logic effectively eradicates memory bottlenecks, achieving order-of-magnitude gains in computational density for the CENTAUR Engine.
