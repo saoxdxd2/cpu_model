@@ -21,12 +21,14 @@
 #include <malloc.h>
 #endif
 
+#include "core/centaur/byte_output_head.hpp"
+
 namespace nca::centaur {
 
 class UnifiedBCTEngine {
 public:
     UnifiedBCTEngine(size_t d_model, size_t d_expert, size_t n_experts)
-        : d_model_(d_model), d_expert_(d_expert), n_experts_(n_experts) {
+        : d_model_(d_model), d_expert_(d_expert), n_experts_(n_experts), byte_head_(d_model) {
         
         if (d_model_ % 16 != 0 || d_expert_ != 16) {
             throw std::runtime_error("UnifiedBCTEngine requires D % 16 == 0 and DE == 16.");
@@ -87,7 +89,11 @@ public:
         }
     }
 
-    void execute(const float* __restrict x, float* __restrict out) const {
+    // Returns a raw tokenless byte by piping expert output into the byte_head
+    uint8_t execute_and_sample(const float* __restrict x) const {
+        alignas(64) float out[8192]; // Safe upper bound for D_model
+        std::memset(out, 0, d_model_ * sizeof(float));
+        
         uint16_t experts[2];
         float gates[2];
         
@@ -167,6 +173,10 @@ public:
             }
 #endif
         }
+
+        // 3. CONTINUOUS TOKENLESS OUTPUT 
+        // Directly map the continuous hidden state to a raw byte using the new AVX-512 head
+        return byte_head_.generate_byte(out);
     }
 
 private:
@@ -181,6 +191,9 @@ private:
     uint8_t* arena_ = nullptr;
     float* router_w_down_ = nullptr;
     uint16_t* experts_arena_ = nullptr;
+
+    // Tokenless architecture projection
+    ByteOutputHead byte_head_;
 };
 
 } // namespace nca::centaur

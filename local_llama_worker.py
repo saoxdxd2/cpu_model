@@ -7,8 +7,11 @@ import subprocess
 import time
 import ctypes
 import llama_cpp
-import ctypes
 from pathlib import Path
+import asyncio
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
+import mcp.types as types
 
 
 ROOT = Path(__file__).resolve().parent
@@ -159,38 +162,197 @@ def save_state(state):
 
 _LLM_INSTANCE = None
 
-def get_llm():
+def get_llm(ctx_size=16384):
     global _LLM_INSTANCE
     if _LLM_INSTANCE is None:
-        print("[worker] Loading model natively via llama_cpp...")
+        draft = None
+        try:
+            print(f"[worker] Loading Draft Model (E2B) natively via llama_cpp (n_ctx={ctx_size}, Weights map into RAM)...")
+            draft_llm = llama_cpp.Llama.from_pretrained(
+                repo_id="unsloth/gemma-4-E2B-it-GGUF",
+                filename="*Q4_K_M.gguf",
+                n_ctx=ctx_size,
+                n_threads=4,
+                n_batch=4,
+                n_gpu_layers=0,
+                flash_attn=True,
+                type_k=2,
+                type_v=2
+            )
+            draft = llama_cpp.LlamaDraftModel(draft_llm)
+            print("[worker] Speculative Decoding enabled via Draft Model.")
+        except Exception as e:
+            print(f"[worker] Failed to load draft model: {e}. Falling back to standard decoding.")
+            
+        print(f"[worker] Loading Target Model (E4B) natively via llama_cpp (n_ctx={ctx_size}, Weights map into RAM once)...")
         _LLM_INSTANCE = llama_cpp.Llama.from_pretrained(
             repo_id="unsloth/gemma-4-E4B-it-GGUF",
             filename="*Q4_K_M.gguf",
-            n_ctx=8192,
+            n_ctx=ctx_size,
             n_threads=4,
             n_batch=4,
             n_gpu_layers=0,
+            draft_model=draft,
             flash_attn=True,
-            type_k=2, # q4_0
+            type_k=2,
             type_v=2
         )
     return _LLM_INSTANCE
 
-def llama_chat(messages, temperature=0.2, max_tokens=2048):
-    llm = get_llm()
-    response = llm.create_chat_completion(
-        messages=messages,
-        temperature=temperature,
-        max_tokens=max_tokens,
-    )
-    return response["choices"][0]["message"]["content"]
 
+async def chat_with_agent(name, agent_data, session, system_prompt, user_prompt, args, temperature=0.2, max_tokens=-1):
+    llm = get_llm(args.ctx_size)
+    
+    print(f"[swarm] {name} Agent is taking the CPU...")
+    
+    # Fast Context Swapping: Load the ~90MB brain specific to this agent
+    if agent_data["state"] is not None:
+        try:
+            llm.load_state(agent_data["state"])
+            print(f"[swarm] Loaded {name}'s KV Cache state into the engine.")
+        except Exception as e:
+            print(f"[swarm] Failed to load state for {name}: {e}. Continuing without state.")
+            
+    tools = [
+        {
+            "type": "function",
+            "function": {
+                "name": "edit_file",
+                "description": "Create or completely overwrite a file with new code. Use this to actively implement your logic.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "path": {"type": "string", "description": "File path relative to repository root"},
+                        "content": {"type": "string", "description": "The exact new content of the file"}
+                    },
+                    "required": ["path", "content"]
+                }
+            }
+        }
+    ]
+    
+    if session:
+        try:
+            tools_response = await session.list_tools()
+            for mcp_tool in tools_response.tools:
+                tools.append({
+                    "type": "function",
+                    "function": {
+                        "name": mcp_tool.name,
+                        "description": mcp_tool.description,
+                        "parameters": mcp_tool.inputSchema
+                    }
+                })
+        except Exception as e:
+            print(f"[worker] Failed to load MCP tools: {e}")
+
+    messages = [{"role": "system", "content": system_prompt}] + agent_data["history"] + [{"role": "user", "content": user_prompt}]
+    
+    # Context window dynamic shift (~3.5 chars per token)
+    MAX_CHARS = int(args.ctx_size * 3.5)
+    while len(messages) > 2 and sum(len(m.get("content", "")) for m in messages) > MAX_CHARS:
+        print(f"[{name}] Context limit approached ({MAX_CHARS} chars). Truncating oldest history message.")
+        messages.pop(1)
+
+    try:
+        response = llm.create_chat_completion(
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            tools=tools,
+            tool_choice="auto"
+        )
+    except ValueError as exc:
+        if "context" in str(exc).lower() or "token" in str(exc).lower():
+            print(f"[{name}] 400 Context Limit Exceeded. Falling back to zero-history.")
+            truncated_prompt = user_prompt[:16000] + "\n\n[TRUNCATED DUE TO CONTEXT LIMIT]"
+            messages = [{"role": "system", "content": system_prompt}, {"role": "user", "content": truncated_prompt}]
+            agent_data["history"] = [] # Clear history on overflow
+            response = llm.create_chat_completion(
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                tools=tools,
+                tool_choice="auto"
+            )
+        else:
+            raise
+
+    message = response["choices"][0]["message"]
+    report_lines = [message.get("content", "")]
+    
+    # Process tools locally
+    if "tool_calls" in message and message["tool_calls"]:
+        for tc in message["tool_calls"]:
+            if tc["type"] == "function":
+                tool_name = tc["function"]["name"]
+                try:
+                    args = json.loads(tc["function"]["arguments"])
+                except Exception:
+                    args = {}
+                    
+                if tool_name == "edit_file":
+                    try:
+                        file_path = ROOT / args["path"]
+                        file_path.parent.mkdir(parents=True, exist_ok=True)
+                        file_path.write_text(args.get("content", ""), encoding="utf-8")
+                        action_msg = f"-> Tool execution successful: Overwrote {args.get('path', '')}"
+                        print(f"[{name}] {action_msg}")
+                        report_lines.append(f"\n**Tool Execution:** {action_msg}")
+                    except Exception as e:
+                        err_msg = f"-> Tool execution failed: {e}"
+                        print(f"[{name}] {err_msg}")
+                        report_lines.append(f"\n**Tool Error:** {err_msg}")
+                else:
+                    # MCP Tool Execution
+                    if session:
+                        try:
+                            result = await session.call_tool(tool_name, args)
+                            mcp_result = "\n".join([c.text for c in result.content if c.type == "text"])
+                            action_msg = f"-> MCP Tool '{tool_name}' successful: {mcp_result[:300]}..."
+                            print(f"[{name}] {action_msg}")
+                            report_lines.append(f"\n**MCP Tool Execution:** {action_msg}")
+                        except Exception as e:
+                            err_msg = f"-> MCP Tool '{tool_name}' failed: {e}"
+                            print(f"[{name}] {err_msg}")
+                            report_lines.append(f"\n**MCP Tool Error:** {err_msg}")
+                            
+    final_output = "\n".join([line for line in report_lines if line is not None])
+    
+    # Save the continuous conversational state so the Agent remembers what it did
+    agent_data["history"].append({"role": "user", "content": user_prompt})
+    agent_data["history"].append({"role": "assistant", "content": final_output})
+    
+    # Save the physical KV Cache (~90MB) back to Python Memory
+    agent_data["state"] = llm.save_state()
+    print(f"[swarm] Preserved {name}'s state to memory.")
+    
+    return final_output
+
+
+import re
+
+def extract_cpp_ast(root_dir):
+    ast_graph = {}
+    try:
+        for path in root_dir.rglob("*.hpp"):
+            if "build" in path.parts or ".git" in path.parts: continue
+            try:
+                content = path.read_text(encoding="utf-8")
+                structs = re.findall(r'(?:struct|class)\s+\w+(?:\s*:\s*(?:public|private|protected)\s+[\w<>:]+)?', content)
+                funcs = re.findall(r'^\s*(?:virtual|inline|static|constexpr|template.*?)?\s*[\w<>:]+\s+[\w<>:]+\s*\([^)]*\)\s*(?:const|noexcept|override)?\s*(?=\{)', content, re.MULTILINE)
+                if structs or funcs:
+                    ast_graph[path.name] = {"structures": structs, "functions": [f.strip().replace('\n', '') for f in funcs]}
+            except Exception: pass
+    except Exception: pass
+    return json.dumps(ast_graph, indent=2)
 
 def collect_context(run_build):
     context = {}
     context["resources"] = resource_snapshot()
     context["git_status"] = run_cmd(["git", "status", "--short"])
     context["files"] = run_cmd(["rg", "--files"], timeout=20)
+    context["ast_graph"] = extract_cpp_ast(ROOT)
     context["cmake_top"] = read_text(ROOT / "CMakeLists.txt", 4000)
     context["nn_tests_cmake"] = read_text(ROOT / "nn" / "tests" / "CMakeLists.txt", 8000)
     context["goal"] = read_text(GOAL_FILE, 8000)
@@ -208,76 +370,6 @@ def collect_context(run_build):
     return context
 
 
-def build_prompt(context):
-    return f"""
-You are the local Agentless research worker for this repository.
-
-Project direction:
-{context["goal"]}
-
-Workflow:
-1. Localization: identify the smallest file/function/experiment that matters.
-2. Proposal: describe the next patch or experiment. Do not edit files.
-3. Validation: define exact commands and pass/fail criteria.
-
-Hard rules:
-- Do not claim the project works unless verified by commands or source evidence.
-- Prefer small, testable steps toward the Weight-Space Trading Engine.
-- Focus on model optimization, tensor inspection, quantization atlas, reward oracle, and safe evaluation.
-- Avoid agent frameworks, CrewAI/LangGraph-style orchestration, and open-ended tool loops.
-- Do not recommend direct autonomous source rewrites. Propose patch plans only.
-- Identify blockers that could waste months.
-- Output a concise Markdown report with:
-  1. Current status
-  2. Most important finding
-  3. Next 3 concrete actions
-  4. Files likely involved
-  5. Risks / falsification checks
-
-Repository context:
-
-RESOURCE SNAPSHOT:
-```json
-{json.dumps(context["resources"], indent=2)}
-```
-
-GIT STATUS:
-```text
-{json.dumps(context["git_status"], indent=2)}
-```
-
-FILES:
-```text
-{context["files"]["stdout"][:12000]}
-```
-
-TOP CMAKE:
-```cmake
-{context["cmake_top"]}
-```
-
-TESTS CMAKE:
-```cmake
-{context["nn_tests_cmake"]}
-```
-
-TINY HONEST EVAL, IF PRESENT:
-```python
-{context["tiny_eval"]}
-```
-
-BUILD RESULT, IF RUN:
-```text
-{json.dumps(context.get("build", {}), indent=2)}
-```
-
-CTEST RESULT, IF RUN:
-```text
-{json.dumps(context.get("ctest", {}), indent=2)}
-```
-"""
-
-
 def write_report(iteration, report):
     RUNS_DIR.mkdir(exist_ok=True)
     stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -286,91 +378,135 @@ def write_report(iteration, report):
     return path
 
 
-def run_iteration(args, state):
+async def run_iteration(args, state, session, agent_manager):
     iteration = int(state.get("iteration", 0)) + 1
-    resources = resource_snapshot()
-    available_mb = resources.get("memory", {}).get("available_physical_mb", 0)
-    if available_mb and available_mb < args.min_free_mb:
-        report = (
-            f"# Iteration {iteration}: skipped\n\n"
-            f"Free RAM is {available_mb} MB, below threshold {args.min_free_mb} MB.\n\n"
-            "The worker skipped the llama.cpp call to avoid destabilizing the laptop.\n"
-        )
-        report_path = write_report(iteration, report)
-        state["iteration"] = iteration
-        state.setdefault("reports", []).append(str(report_path.relative_to(ROOT)))
-        state["last_report"] = str(report_path.relative_to(ROOT))
-        state["last_resource_snapshot"] = resources
-        save_state(state)
-        print(f"[worker] skipped low-memory iteration, wrote {report_path}")
-        return
-
+    
     context = collect_context(run_build=args.run_build)
-
-    prompt = build_prompt(context)
-    system_msg = {
-        "role": "system",
-        "content": "You are a rigorous Agentless local engineering worker. Be blunt, concrete, and evidence-driven.",
-    }
     
-    # Load history to resume and not reset to 0
-    history_msgs = []
-    reports = state.get("reports", [])
-    for report_rel in reports[-5:]:  # Keep up to 5 recent iterations
-        report_path = ROOT / report_rel
-        if report_path.exists():
-            history_msgs.append({"role": "assistant", "content": read_text(report_path, max_chars=1500)})
-            history_msgs.append({"role": "user", "content": "Continue with the next iteration based on the updated state."})
-
-    # Context window shifting mechanism (like cline/antigravity)
-    # Approximate limit: ~8192 tokens = ~32000 chars. We reserve 4000 for generation and keep prompt safe.
-    MAX_CHARS = 24000
+    # ---------------------------------------------------------
+    # MULTI-AGENT SWARM WORKFLOW
+    # ---------------------------------------------------------
     
-    messages = [system_msg] + history_msgs + [{"role": "user", "content": prompt}]
+    # 1. ARCHITECT AGENT (Tree of Thoughts Branching)
+    print(f"\n--- SWARM PHASE 1: ARCHITECT (Tree of Thoughts) ---")
+    architect_sys = "You are the Architect Agent. You MUST begin your response with a <|think|> block. Inside this block, mathematically evaluate L1 cache locality, memory alignment, and dual-port SIMD saturation (specifically mixing AVX-512 and AVX2 to maximize throughput on Ice Lake CPUs with a single AVX-512 FMA unit). Then output your high-level blueprint. Do NOT edit files."
+    architect_user = f"Context Goal:\n{context['goal']}\n\nMathematical AST Graph of Codebase:\n{context['ast_graph'][:6000]}\n\nDraft a concise high-level blueprint for the next phase."
     
-    # Truncate oldest history if we exceed the limit
-    while len(messages) > 2 and sum(len(m["content"]) for m in messages) > MAX_CHARS:
-        print("[worker] Context limit approached. Truncating oldest history message to prevent reset.")
-        messages.pop(1) # Remove oldest message after system prompt
+    branches = []
+    num_branches = 3
+    for i in range(num_branches):
+        branch_agent = {
+            "state": agent_manager["Architect"]["state"], 
+            "history": list(agent_manager["Architect"]["history"])
+        }
+        prompt_variation = architect_user + f"\n\nVariation {i+1}: Approach this problem from a completely unique, different angle than your normal path. Explore an alternative mathematical or structural approach."
+        
+        report = await chat_with_agent(f"Architect-Branch-{i+1}", branch_agent, session, architect_sys, prompt_variation, args, temperature=0.6)
+        branches.append({"report": report, "agent_data": branch_agent})
 
-    try:
-        report = llama_chat(
-            messages,
-            temperature=args.temperature,
-            max_tokens=args.max_tokens,
-        )
-    except ValueError as exc:
-        if "context" in str(exc).lower() or "token" in str(exc).lower():
-            print("[worker] 400 Context Limit Exceeded. Falling back to zero-history truncated prompt.")
-            # Aggressively truncate if the prompt itself is too large
-            truncated_prompt = prompt[:16000] + "\n\n[TRUNCATED DUE TO CONTEXT LIMIT]"
-            messages = [system_msg, {"role": "user", "content": truncated_prompt}]
-            report = llama_chat(
-                messages,
-                temperature=args.temperature,
-                max_tokens=args.max_tokens,
-            )
+    # Reviewer scores the branches for A* Queue
+    reviewer_tot_user = "The Architect generated three possible blueprints:\n"
+    for i, b in enumerate(branches):
+        reviewer_tot_user += f"\n--- BLUEPRINT {i+1} ---\n{b['report']}\n"
+    reviewer_tot_user += "\nCritique these 3 blueprints. You MUST assign a score out of 10 to each based on cache-locality and hardware-specific SIMD applicability (mixing AVX-512 with AVX2). You MUST format your scoring as 'BLUEPRINT 1 SCORE: X', 'BLUEPRINT 2 SCORE: Y', etc."
+    
+    tot_evaluation = await chat_with_agent("Reviewer", agent_manager["Reviewer"], session, "You are the Reviewer Agent. Evaluate and score blueprints.", reviewer_tot_user, args, temperature=0.1)
+    
+    # Extract scores for A* Priority Queue
+    import re
+    scores = []
+    for i in range(num_branches):
+        match = re.search(f"BLUEPRINT {i+1} SCORE:\s*(\d+)", tot_evaluation.upper())
+        score = int(match.group(1)) if match else 5
+        scores.append((score, i))
+    
+    scores.sort(reverse=True, key=lambda x: x[0]) # Highest score first
+    print(f"[swarm] A* Priority Queue established: {scores}")
+    
+    coder_sys = "You are the Coder Agent. You MUST begin your response with a <|think|> block to map out exact line numbers and memory structs you will modify. Then strictly implement the blueprint using your `edit_file` tool."
+    reviewer_sys = "You are the Reviewer Agent. You MUST begin with a <|think|> block auditing the code for memory flaws, L1 cache misses, and missed opportunities to parallelize AVX-512 with AVX2 intrinsics. If flawless, output 'STATUS: APPROVED'. If there are errors, output 'STATUS: REJECTED' and list the exact flaws."
+    
+    path_successful = False
+    
+    # A* Search Backtracking Loop
+    for score, selected_idx in scores:
+        print(f"\n[A* Search] Expanding Node: Blueprint {selected_idx+1} (Heuristic Score: {score}/10)...")
+        
+        agent_manager["Architect"] = branches[selected_idx]["agent_data"]
+        architect_report = branches[selected_idx]["report"]
+        
+        print(f"\n--- SWARM PHASE 2: CODER ---")
+        coder_user = f"The Architect has provided the winning blueprint:\n{architect_report}\n\nExecute this plan by actively writing the C++ files."
+        coder_report = await chat_with_agent("Coder", agent_manager["Coder"], session, coder_sys, coder_user, args, temperature=0.1)
+        
+        print(f"\n--- SWARM PHASE 3: EXECUTION FEEDBACK & CRITIC ---")
+        max_critique_loops = 3
+        critique_history = f"### ToT Selection & A* Path\n{tot_evaluation}\n\nSelected Path: Blueprint {selected_idx+1}\n\n"
+        
+        node_success = False
+        
+        for loop_idx in range(max_critique_loops):
+            # 3A. Execution Feedback (Self-Debugging)
+            print(f"\n[swarm] Compiling current codebase for verification...")
+            build_result = run_cmd(["cmake", "--build", str(ROOT / "build"), "--config", "Release", "--parallel", "4"], timeout=180)
+            
+            if build_result["returncode"] != 0:
+                print("[swarm] MSVC Compilation FAILED. Instantly feeding stderr back to Coder.")
+                compiler_err = build_result['stderr'][-4000:] if build_result['stderr'] else build_result['stdout'][-4000:]
+                coder_revision_user = f"Your code FAILED to compile! MSVC compiler output:\n{compiler_err}\n\nPlease use your tools to fix these compilation errors immediately."
+                coder_report = await chat_with_agent("Coder", agent_manager["Coder"], session, coder_sys, coder_revision_user, args, temperature=0.1)
+                critique_history += f"\n### Coder Compiler Fixes (Loop {loop_idx+1})\n{coder_report}\n"
+                continue # Recompile
+                
+            # 3B. Architectural Critique
+            reviewer_user = f"The Coder's updates compiled successfully.\n\nCurrent Git Status:\n{context['git_status']['stdout']}\n\nCritique the logical implementation. Start your response with STATUS: APPROVED or STATUS: REJECTED."
+            reviewer_report = await chat_with_agent("Reviewer", agent_manager["Reviewer"], session, reviewer_sys, reviewer_user, args, temperature=0.2)
+            critique_history += f"\n### Reviewer (Loop {loop_idx+1})\n{reviewer_report}\n"
+            
+            if "STATUS: APPROVED" in reviewer_report.upper():
+                print(f"[swarm] Reviewer APPROVED the implementation on loop {loop_idx+1}.")
+                node_success = True
+                break
+                
+            print(f"\n--- SWARM PHASE 2B: CODER REVISION (Loop {loop_idx+1}) ---")
+            coder_revision_user = f"The Reviewer REJECTED your logic with the following feedback:\n{reviewer_report}\n\nPlease use your tools to apply the requested fixes immediately."
+            coder_report = await chat_with_agent("Coder", agent_manager["Coder"], session, coder_sys, coder_revision_user, args, temperature=0.1)
+            critique_history += f"\n### Coder Logic Revision (Loop {loop_idx+1})\n{coder_report}\n"
+            
+        if node_success:
+            path_successful = True
+            break
         else:
-            raise
+            print(f"[A* Search] Path {selected_idx+1} dead-ended (failed to compile or pass review 3 times). Backtracking to next best node in Priority Queue...")
+            # Note: For perfect backtracking, we would git checkout / reset the files to pristine state here.
+            run_cmd(["git", "restore", "."])
+    
+    if not path_successful:
+        print("[A* Search] FATAL: All ToT branches failed. Forcing iteration commit to allow agent to observe failure.")
+        
+    # ---------------------------------------------------------
+    
+    full_report = f"# Multi-Agent Swarm Iteration {iteration}\n\n## 1. Architect's Selected Blueprint\n{architect_report}\n\n## 2. Coder's Execution\n{coder_report}\n\n## 3. CRITIC Review Log\n{critique_history}"
 
-    report_path = write_report(iteration, report)
+    report_path = write_report(iteration, full_report)
     state["iteration"] = iteration
     state.setdefault("reports", []).append(str(report_path.relative_to(ROOT)))
     state["last_report"] = str(report_path.relative_to(ROOT))
     state["last_resource_snapshot"] = context["resources"]
     save_state(state)
-    print(f"[worker] wrote {report_path}")
+    print(f"[worker] Swarm Iteration Complete. Wrote {report_path}")
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Local llama.cpp 24/7 project worker.")
+async def main():
+    parser = argparse.ArgumentParser(description="Local LLaMA 24/7 Multi-Agent Swarm Worker with MCP.")
     parser.add_argument("--server", default=DEFAULT_SERVER, help="llama-server base URL")
+    parser.add_argument("--ctx-size", type=int, default=16384, help="Context size for the model (scales RAM footprint)")
     parser.add_argument("--interval", type=int, default=1800, help="seconds between iterations")
     parser.add_argument("--max-iterations", type=int, default=0, help="0 means run forever")
     parser.add_argument("--once", action="store_true", help="run one iteration and exit")
     parser.add_argument("--run-build", action="store_true", help="run build and ctest each iteration")
     parser.add_argument("--temperature", type=float, default=0.2)
-    parser.add_argument("--max-tokens", type=int, default=2048)
+    parser.add_argument("--max-tokens", type=int, default=-1, help="Max tokens to generate (-1 means no limit, up to context size)")
     parser.add_argument("--min-free-mb", type=float, default=1024.0, help="skip LLM calls below this free RAM")
     parser.add_argument("--retry-base", type=int, default=30, help="initial retry delay after failures")
     parser.add_argument("--retry-max", type=int, default=900, help="maximum retry delay after repeated failures")
@@ -379,34 +515,61 @@ def main():
     state = load_state()
     completed = 0
     retry_delay = args.retry_base
-    while True:
-        try:
-            run_iteration(args, state)
-            retry_delay = args.retry_base
-            if args.once:
-                return
-            print(f"[worker] retry delay is {retry_delay}s")
-            time.sleep(retry_delay)
-            retry_delay = min(retry_delay * 2, args.retry_max)
-            continue
-        except Exception as exc:
-            append_error("iteration", exc)
-            print(f"[worker] iteration failed: {type(exc).__name__}: {exc}")
-            if args.once:
-                return
-            print(f"[worker] retry delay is {retry_delay}s")
-            time.sleep(retry_delay)
-            retry_delay = min(retry_delay * 2, args.retry_max)
-            continue
-        except KeyboardInterrupt:
-            print("[worker] stopped")
-            return
-
-        completed += 1
-        if args.once or (args.max_iterations and completed >= args.max_iterations):
-            return
-        time.sleep(args.interval)
+    
+    # Define our lightweight Swarm Agents
+    agent_manager = {
+        "Architect": {"state": None, "history": []},
+        "Coder":     {"state": None, "history": []},
+        "Reviewer":  {"state": None, "history": []}
+    }
+    
+    server_params = StdioServerParameters(
+        command="npx",
+        args=["-y", "@modelcontextprotocol/server-memory"]
+    )
+    
+    print("[worker] Starting MCP stdio_client to @modelcontextprotocol/server-memory ...")
+    try:
+        async with stdio_client(server_params) as (read, write):
+            async with ClientSession(read, write) as session:
+                await session.initialize()
+                print("[worker] MCP Session initialized. Graph memory available.")
+                
+                while True:
+                    try:
+                        await run_iteration(args, state, session, agent_manager)
+                        if args.once:
+                            return
+                        completed += 1
+                        if args.max_iterations and completed >= args.max_iterations:
+                            return
+                        # No artificial delays. Let the Swarm think infinitely.
+                    except Exception as exc:
+                        append_error("iteration", exc)
+                        print(f"[worker] iteration failed: {type(exc).__name__}: {exc}")
+                        if args.once:
+                            return
+                        await asyncio.sleep(10) # brief pause only on crashes
+                    except KeyboardInterrupt:
+                        print("[worker] stopped")
+                        return
+                    
+    except Exception as e:
+        print(f"[worker] MCP server startup failed: {e}. Falling back to standard loop.")
+        while True:
+            try:
+                await run_iteration(args, state, None, agent_manager)
+                if args.once:
+                    return
+                completed += 1
+                if args.max_iterations and completed >= args.max_iterations:
+                    return
+            except Exception as exc:
+                print(f"[worker] error: {exc}")
+                await asyncio.sleep(10)
+            except KeyboardInterrupt:
+                break
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
