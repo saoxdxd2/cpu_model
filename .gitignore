@@ -26,6 +26,9 @@ nca_final_model.pt
 __pycache__/
 .cache/
 .ipynb_checkpoints/
+automation_runs/
+automation_state.json
+automation_errors.jsonl
 
 # User-specific
 .vscode/

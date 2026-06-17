@@ -127,6 +127,7 @@ def main():
 
     iteration = 1
     MAX_FIX_RETRIES = 3
+    current_sleep = 15
 
     while True:
         print(f"\n================ Iteration {iteration} ================")
@@ -192,9 +193,24 @@ def main():
                 print("[ROLLBACK] Reverting codebase to original mathematical state.")
                 with open(target_filepath, "w", encoding="utf-8") as f:
                     f.write(original_code)
+            
+            current_sleep = 15
                 
         except Exception as e:
-            print(f"[ERROR] Agent encountered a critical failure in the loop: {e}")
+            err_msg = str(e)
+            if "429" in err_msg or "RESOURCE_EXHAUSTED" in err_msg or "Quota exceeded" in err_msg:
+                import re
+                match = re.search(r"retry in ([\d\.]+)s", err_msg)
+                if match:
+                    wait_time = float(match.group(1)) + 5.0
+                else:
+                    current_sleep = min(current_sleep * 2, 300)
+                    wait_time = current_sleep
+                print(f"\n[RATE LIMIT] API quota exceeded. Waiting {wait_time:.1f} seconds before retrying iteration {iteration}...")
+                time.sleep(wait_time)
+                continue
+            else:
+                print(f"[ERROR] Agent encountered a critical failure in the loop: {e}")
             
         print("\nSleeping for 15 seconds before the next iteration...")
         time.sleep(15)

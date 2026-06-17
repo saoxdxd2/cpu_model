@@ -14,7 +14,7 @@ if not API_KEY:
 
 root_dir = r"c:\Users\sao\Documents\cpu_model"
 output_file = os.path.join(root_dir, "research_paper", "PROJECT_DOCUMENTATION_AND_FUNCTIONS.md")
-exclude_dirs = {'.git', 'build', 'training', 'deployment', 'research_paper', '.gemini', '.sixth'}
+exclude_dirs = {'.git', 'build', 'training', 'deployment', 'research_paper', '.gemini', '.sixth', 'tests'}
 
 def process_file(filepath, chain):
     try:
@@ -26,20 +26,21 @@ def process_file(filepath, chain):
     rel_path = os.path.relpath(filepath, root_dir)
     print(f"Processing {rel_path}...")
     
-    # Retry mechanism wrapping LangChain execution to handle severe 429s
-    for attempt in range(5):
+    # Infinite Retry mechanism wrapping LangChain execution to handle severe 429s
+    attempt = 0
+    while True:
         try:
             doc = chain.invoke({"rel_path": rel_path, "content": content})
             return f"## File: `{rel_path}`\n\n{doc}\n\n---\n\n"
         except Exception as e:
-            if "429" in str(e):
-                print(f"Rate limited on {rel_path}. Retrying in {2 ** attempt * 2}s...")
-                time.sleep(2 ** attempt * 2)
+            if "429" in str(e) or "quota" in str(e).lower() or "Too Many Requests" in str(e):
+                wait_time = min(300, 2 ** attempt * 2) # Cap wait at 5 minutes
+                print(f"Rate limited on {rel_path}. Waiting {wait_time}s...")
+                time.sleep(wait_time)
+                attempt += 1
             else:
-                print(f"Error on {rel_path}: {e}. Retrying in {2 ** attempt}s...")
-                time.sleep(2 ** attempt)
-                
-    return f"## File: `{rel_path}`\n\nError: Maximum retries exceeded due to rate limiting.\n\n---\n\n"
+                print(f"Error on {rel_path}: {e}. Retrying in 5s...")
+                time.sleep(5)
 
 def main():
     print("Starting LangChain-powered documentation generation...")
@@ -48,6 +49,8 @@ def main():
     for root, dirs, files in os.walk(root_dir):
         dirs[:] = [d for d in dirs if d not in exclude_dirs]
         for file in files:
+            if "test" in file.lower():
+                continue
             if file.endswith(('.cpp', '.hpp', '.h', '.c', '.cmake', 'CMakeLists.txt', '.py')):
                 files_to_process.append(os.path.join(root, file))
 
